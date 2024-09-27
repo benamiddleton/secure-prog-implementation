@@ -22,16 +22,18 @@ int main() {
     // Bind the socket to the specified port and IP
     bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
 
-    // Listen for incoming connections
-    listen(sock, 3);
+    while (1) {
+        // Listen for incoming connections
+        listen(sock, 3);
 
-    // Accept a client connection
-    socklen_t client_addr_size = sizeof(client_addr);
-    client_sock = accept(sock, (struct sockaddr *)&client_addr, &client_addr_size);
+        // Accept a client connection
+        socklen_t client_addr_size = sizeof(client_addr);
+        client_sock = accept(sock, (struct sockaddr *)&client_addr, &client_addr_size);
 
-    // Receive a message from the client
-    recv(client_sock, buffer, sizeof(buffer), 0);
-    printf("Received message: %s\n", buffer);
+        // Receive a message from the client
+        recv(client_sock, buffer, sizeof(buffer), 0);
+        printf("Received message: %s\n", buffer);
+    }
 
     // Close the client and server sockets
     close(client_sock);
