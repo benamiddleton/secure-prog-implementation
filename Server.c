@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>  // For socket functions and address structures
 #include <unistd.h>  // For close() function
+#include "Server2Server.h"
 
 #define SERVER_PORT 8080  // Port to listen on
 
@@ -21,6 +22,8 @@ int main() {
 
     // Bind the socket to the specified port and IP
     bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
+
+    connect_to_neighbour(sock);
 
     while (1) {
         // Listen for incoming connections
