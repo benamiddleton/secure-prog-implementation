@@ -46,25 +46,52 @@ unsigned char* base64_decode(const char* base64_data, size_t* out_len) {
     return buffer;
 }
 
+// Function to generate RSA key pair (2048-bit key size)
+EVP_PKEY* generate_rsa_key() {
+    RSA *rsa = RSA_new();
+    BIGNUM *bn = BN_new();
+    EVP_PKEY *pkey = EVP_PKEY_new();
+
+    if (!BN_set_word(bn, RSA_F4)) {
+        handle_errors();
+    }
+
+    // Generate a 2048-bit RSA key
+    if (!RSA_generate_key_ex(rsa, RSA_KEY_SIZE, bn, NULL)) {
+        handle_errors();
+    }
+
+    EVP_PKEY_assign_RSA(pkey, rsa);
+    BN_free(bn);
+    return pkey;
+}
+
 // Function to sign message using RSA-PSS
-int sign_message(EVP_PKEY *private_key, const unsigned char *message, size_t message_len, unsigned char **signature, size_t *signature_len) {
+int sign_message(EVP_PKEY *private_key, const unsigned char *message, size_t message_len, unsigned char *signature) {
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (!mdctx) handle_errors();
 
-    if (1 != EVP_DigestSignInit(mdctx, NULL, EVP_sha256(), NULL, private_key))
+    EVP_PKEY_CTX *pctx;
+    if (1 != EVP_DigestSignInit(mdctx, &pctx, EVP_sha256(), NULL, private_key))
+        handle_errors();
+
+    if (1 != EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING))
+        handle_errors();
+
+    if (1 != EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, 32))
         handle_errors();
 
     if (1 != EVP_DigestSignUpdate(mdctx, message, message_len))
         handle_errors();
 
-    if (1 != EVP_DigestSignFinal(mdctx, NULL, signature_len))
+    size_t signature_len = SIGNATURE_SIZE;
+    if (1 != EVP_DigestSignFinal(mdctx, signature, &signature_len))
         handle_errors();
 
-    *signature = (unsigned char*)malloc(*signature_len);
-    if (!*signature) handle_errors();
-
-    if (1 != EVP_DigestSignFinal(mdctx, *signature, signature_len))
+    if (signature_len != SIGNATURE_SIZE) {
+        fprintf(stderr, "Unexpected signature size: %zu\n", signature_len);
         handle_errors();
+    }
 
     EVP_MD_CTX_free(mdctx);
     return 1;
@@ -104,6 +131,9 @@ int rsa_encrypt(EVP_PKEY *public_key, const unsigned char *aes_key, size_t aes_k
     if (1 != EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING))
         handle_errors();
 
+    if (1 != EVP_PKEY_CTX_set_rsa_oaep_md(ctx, EVP_sha256()))  // Set OAEP to use SHA-256
+        handle_errors();
+
     if (1 != EVP_PKEY_encrypt(ctx, NULL, encrypted_key_len, aes_key, aes_key_len))
         handle_errors();
 
@@ -117,22 +147,26 @@ int rsa_encrypt(EVP_PKEY *public_key, const unsigned char *aes_key, size_t aes_k
     return 1;
 }
 
-// Function to verify message signature
-int verify_signature(EVP_PKEY *public_key, const unsigned char *message, size_t message_len, const unsigned char *signature, size_t signature_len) {
+// Function to verify a message signature
+int verify_signature(EVP_PKEY *public_key, const unsigned char *message, size_t message_len, const unsigned char *signature) {
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (!mdctx) handle_errors();
 
-    // Initialize verification context
-    if (1 != EVP_DigestVerifyInit(mdctx, NULL, EVP_sha256(), NULL, public_key))
+    EVP_PKEY_CTX *pctx;
+    if (1 != EVP_DigestVerifyInit(mdctx, &pctx, EVP_sha256(), NULL, public_key))
         handle_errors();
 
-    // Update verification context with the message (data + counter)
+    // Set the RSA-PSS padding and salt length for verification
+    if (1 != EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING))
+        handle_errors();
+
+    if (1 != EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, 32))
+        handle_errors();
+
     if (1 != EVP_DigestVerifyUpdate(mdctx, message, message_len))
         handle_errors();
 
-    // Verify the signature
-    int result = EVP_DigestVerifyFinal(mdctx, signature, signature_len);
-
+    int result = EVP_DigestVerifyFinal(mdctx, signature, SIGNATURE_SIZE);
     EVP_MD_CTX_free(mdctx);
 
     return result == 1;
