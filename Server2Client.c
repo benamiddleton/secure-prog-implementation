@@ -9,7 +9,7 @@
 #include "Server2Client.h"
 #include "Server2Server.h"
 #include "Encryption.h"
-
+#include <libwebsockets.h>
 #define MAX_CLIENTS 100
 #define BUFFER_SIZE 1024
 
@@ -63,10 +63,11 @@ void broadcast_public_message(int sender_sock, const char* message) {
 void manage_clients(int server_sock) {
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
+    listen(server_sock, 128);
 
     while (1) {
         int *new_client_sock = malloc(sizeof(int));
-        if ((*new_client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &addr_len)) < 0) {
+        if ((*new_client_sock = accept(server_sock, NULL, NULL)) < 0) {
             perror("Failed to accept client connection");
             free(new_client_sock);
             continue;
