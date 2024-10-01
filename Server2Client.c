@@ -45,8 +45,9 @@ Client* find_client(int client_sock) {
 
 // Verify message signature
 int verify_message(const char* message, const char* signature, const char* public_key) {
-    //Use RSA verify to check if signature matches message
-    verify_signature(EVP_PKEY* public_key, const char* message, size_t message_len, const char* signature);
+    // Use RSA verify to check if signature matches message
+    size_t message_len = strlen(message);  // Calculate the length of the message
+    return verify_signature(public_key, message, message_len, signature);
 }
 
 // Process incoming message from client
