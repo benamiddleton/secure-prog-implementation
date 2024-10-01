@@ -6,34 +6,19 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/sha.h>
-#include <json-c/json.h>
+#include <json-c/json.h>  // Replacing jansson with json-c
 #include <openssl/aes.h>
-#include <jansson.h>
 
 #define SERVER_PORT 8080  // Port to connect to
 
+// Base64 encoding function (pseudo-code, replace with a real implementation)
+char* base64_encode(const unsigned char* buffer, size_t length) {
+    // You'll need to use a real base64 encoding function, such as from OpenSSL or another library.
+    // This is just a placeholder.
+    return NULL;
+}
 
-int main() {
-    int sock;  // Socket descriptor
-    struct sockaddr_in server_addr;  // Server address
-    char message[256] = "Hello, Server!";  // Message to send
-
-    // Create the socket (IPv4, TCP)
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-
-    // Set up the server address (IP and port)
-    server_addr.sin_family = AF_INET;  // IPv4
-    server_addr.sin_port = htons(SERVER_PORT);  // Convert port to network byte order
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");  // Server address (localhost)
-
-    // Connect to the server
-    connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
-
-    // Send the message to the server
-    send(sock, message, strlen(message), 0);
-
-
-    char* sign_message(const char *message, int counter) {
+char* sign_message(const char *message, int counter) {
     // Combine message and counter into a single string
     char full_message[512];
     sprintf(full_message, "%s%d", message, counter);
@@ -53,7 +38,7 @@ int main() {
     unsigned int signature_len;
     RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, &signature_len, rsa);
 
-    // Base64 encode the signature (pseudo-code, you'll need to use a real library)
+    // Base64 encode the signature (replace this with a real base64 encoding implementation)
     char *encoded_signature = base64_encode(signature, signature_len);
     
     RSA_free(rsa);
@@ -63,6 +48,7 @@ int main() {
 }
 
 void send_hello(int websocket) {
+    // Create a new JSON object using json-c
     json_object *json_message = json_object_new_object();
     json_object *data = json_object_new_object();
 
@@ -72,6 +58,7 @@ void send_hello(int websocket) {
     json_object_object_add(json_message, "data", data);
 
     const char *json_str = json_object_to_json_string(json_message);
+    // Assuming lws_write is used for WebSocket communication
     lws_write(websocket, (unsigned char*)json_str, strlen(json_str), LWS_WRITE_TEXT);
 
     json_object_put(json_message);  // Free memory
@@ -97,7 +84,7 @@ void send_chat_message(int websocket, const char *message, const char *recipient
     int encrypted_key_len = RSA_public_encrypt(sizeof(aes_key), aes_key, encrypted_key, rsa, RSA_PKCS1_OAEP_PADDING);
     RSA_free(rsa);
 
-    // Create the JSON message
+    // Create the JSON message using json-c
     json_object *json_message = json_object_new_object();
     json_object *data = json_object_new_object();
     json_object_object_add(data, "type", json_object_new_string("chat"));
@@ -114,150 +101,101 @@ void send_chat_message(int websocket, const char *message, const char *recipient
 
 // Function to create a JSON public chat message
 char* create_public_chat(const char* sender_fingerprint, const char* message) {
-    // Create a new JSON object
-    json_t *data_obj = json_object();
+    // Create a new JSON object using json-c
+    json_object *data_obj = json_object_new_object();
 
     // Add fields to the JSON object
-    json_object_set_new(data_obj, "type", json_string("public_chat"));
-    json_object_set_new(data_obj, "sender", json_string(sender_fingerprint));
-    json_object_set_new(data_obj, "message", json_string(message));
+    json_object_object_add(data_obj, "type", json_object_new_string("public_chat"));
+    json_object_object_add(data_obj, "sender", json_object_new_string(sender_fingerprint));
+    json_object_object_add(data_obj, "message", json_object_new_string(message));
 
     // Wrap the data object into a top-level object
-    json_t *root = json_object();
-    json_object_set_new(root, "data", data_obj);
+    json_object *root = json_object_new_object();
+    json_object_object_add(root, "data", data_obj);
 
     // Convert JSON object to a string
-    char *json_string_output = json_dumps(root, JSON_COMPACT);
+    const char *json_string_output = json_object_to_json_string(root);
 
     // Free the JSON objects
-    json_decref(root);
+    json_object_put(root);
 
-    return json_string_output;  // The caller should free this string after use
+    return strdup(json_string_output);  // The caller should free this string after use
 }
 
 // Function to create a JSON client list request
 char* create_client_list_request() {
-    // Create a new JSON object
-    json_t *root = json_object();
+    // Create a new JSON object using json-c
+    json_object *root = json_object_new_object();
 
     // Add the "type" field to indicate a client list request
-    json_object_set_new(root, "type", json_string("client_list_request"));
+    json_object_object_add(root, "type", json_object_new_string("client_list_request"));
 
     // Convert JSON object to a string
-    char *json_string_output = json_dumps(root, JSON_COMPACT);
+    const char *json_string_output = json_object_to_json_string(root);
 
     // Free the JSON object
-    json_decref(root);
+    json_object_put(root);
 
-    return json_string_output;  // The caller should free this string after use
+    return strdup(json_string_output);  // The caller should free this string after use
 }
 
 // Function to create a JSON client list response
 char* create_client_list_response(const char** server_addresses, const char*** clients, int server_count) {
-    // Create the root JSON object
-    json_t *root = json_object();
-    json_object_set_new(root, "type", json_string("client_list"));
+    // Create the root JSON object using json-c
+    json_object *root = json_object_new_object();
+    json_object_object_add(root, "type", json_object_new_string("client_list"));
 
     // Create a JSON array to hold the servers
-    json_t *servers_array = json_array();
+    json_object *servers_array = json_object_new_array();
 
     for (int i = 0; i < server_count; i++) {
         // Create a JSON object for each server
-        json_t *server_obj = json_object();
-        json_object_set_new(server_obj, "address", json_string(server_addresses[i]));
+        json_object *server_obj = json_object_new_object();
+        json_object_object_add(server_obj, "address", json_object_new_string(server_addresses[i]));
 
         // Create a JSON array for clients
-        json_t *clients_array = json_array();
+        json_object *clients_array = json_object_new_array();
         for (int j = 0; clients[i][j] != NULL; j++) {
-            json_array_append_new(clients_array, json_string(clients[i][j]));
+            json_object_array_add(clients_array, json_object_new_string(clients[i][j]));
         }
 
         // Add the clients array to the server object
-        json_object_set_new(server_obj, "clients", clients_array);
+        json_object_object_add(server_obj, "clients", clients_array);
 
         // Add the server object to the servers array
-        json_array_append_new(servers_array, server_obj);
+        json_object_array_add(servers_array, server_obj);
     }
 
     // Add the servers array to the root object
-    json_object_set_new(root, "servers", servers_array);
+    json_object_object_add(root, "servers", servers_array);
 
     // Convert JSON object to a string
-    char *json_string_output = json_dumps(root, JSON_COMPACT);
+    const char *json_string_output = json_object_to_json_string(root);
 
     // Free the JSON objects
-    json_decref(root);
+    json_object_put(root);
 
-    return json_string_output;  // The caller should free this string after use
+    return strdup(json_string_output);  // The caller should free this string after use
 }
 
-def handle_hello_message(message):
-    // Parse the hello message
-    try:
-        message_data = message['data']
-        if message_data['type'] == 'hello':
-            sender_fingerprint = message_data['sender']
-            print(f"Hello from client: {sender_fingerprint}")
-            // Handle any further actions, like adding the sender to a client list
-            // update_client_list(sender_fingerprint)
-        else:
-            print("Received unexpected message type in hello handler")
-    except KeyError:
-        print("Malformed hello message")
+int main() {
+    int sock;  // Socket descriptor
+    struct sockaddr_in server_addr;  // Server address
+    char message[256] = "Hello, Server!";  // Message to send
 
-// Example usage:
-// handle_hello_message({ "data": { "type": "hello", "sender": "client_fingerprint" } })
+    // Create the socket (IPv4, TCP)
+    sock = socket(AF_INET, SOCK_STREAM, 0);
 
-def handle_chat_message(message):
-    // Parse the chat message
-    try:
-        message_data = message['data']
-        if message_data['type'] == 'chat':
-            sender_fingerprint = message_data['sender']
-            encrypted_message = message_data['message']
-            // Decrypt the message if needed, here we assume it's already decrypted
-            print(f"Chat message from {sender_fingerprint}: {encrypted_message}")
-        else:
-            print("Received unexpected message type in chat handler")
-    except KeyError:
-        print("Malformed chat message")
+    // Set up the server address (IP and port)
+    server_addr.sin_family = AF_INET;  // IPv4
+    server_addr.sin_port = htons(SERVER_PORT);  // Convert port to network byte order
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");  // Server address (localhost)
 
-// Example usage:
-// handle_chat_message({ "data": { "type": "chat", "sender": "client_fingerprint", "message": "Hello there!" } })
+    // Connect to the server
+    connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
 
-def handle_public_chat_message(message):
-    // Parse the public chat message
-    try:
-        message_data = message['data']
-        if message_data['type'] == 'public_chat':
-            sender_fingerprint = message_data['sender']
-            plaintext_message = message_data['message']
-            print(f"Public message from {sender_fingerprint}: {plaintext_message}")
-        else:
-            print("Received unexpected message type in public chat handler")
-    except KeyError:
-        print("Malformed public chat message")
-
-// Example usage:
-// handle_public_chat_message({ "data": { "type": "public_chat", "sender": "client_fingerprint", "message": "This is a public message" } })
-
-def handle_message(message):
-    message_type = message.get('data', {}).get('type')
-    
-    if message_type == 'hello':
-        handle_hello_message(message)
-    elif message_type == 'chat':
-        handle_chat_message(message)
-    elif message_type == 'public_chat':
-        handle_public_chat_message(message)
-    else:
-        print(f"Unknown message type: {message_type}")
-
-// Example usage:
-// message = { "data": { "type": "public_chat", "sender": "client_fingerprint", "message": "Hello everyone!" } }
-// handle_message(message)
-
-
+    // Send the message to the server
+    send(sock, message, strlen(message), 0);
 
     // Close the socket
     close(sock);
