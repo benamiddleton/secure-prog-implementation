@@ -38,4 +38,6 @@ int verify_signature(EVP_PKEY *public_key, const unsigned char *message, size_t 
 // Function to generate RSA key pair (2048-bit key size)
 EVP_PKEY* generate_rsa_key();
 
+char* get_public_key_pem(EVP_PKEY *pkey);
+
 #endif

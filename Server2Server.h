@@ -6,3 +6,4 @@
 #include <fcntl.h>
 
 void connect_to_neighbour(int);
+json_object *get_neighbourhood_clients(int);

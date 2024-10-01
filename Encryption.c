@@ -46,6 +46,29 @@ unsigned char* base64_decode(const char* base64_data, size_t* out_len) {
     return buffer;
 }
 
+char* get_public_key_pem(EVP_PKEY *pkey) {
+    BIO *bio = BIO_new(BIO_s_mem());  // Create a memory BIO
+    if (!PEM_write_bio_PUBKEY(bio, pkey)) {
+        // handle errors
+        return NULL;
+    }
+
+    // Get the length of the PEM string
+    size_t pubkey_len = BIO_pending(bio);
+    char *pubkey_pem = (char *)malloc(pubkey_len + 1);  // Allocate space for the PEM string
+    if (!pubkey_pem) {
+        // handle errors
+        return NULL;
+    }
+
+    // Read the PEM string from the BIO
+    BIO_read(bio, pubkey_pem, pubkey_len);
+    pubkey_pem[pubkey_len] = '\0';  // Null-terminate the string
+
+    BIO_free(bio);  // Free the BIO
+    return pubkey_pem;
+}
+
 // Function to generate RSA key pair (2048-bit key size)
 EVP_PKEY* generate_rsa_key() {
     RSA *rsa = RSA_new();

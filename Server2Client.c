@@ -30,6 +30,7 @@ void add_client(int client_sock, const char* public_key) {
         strncpy(clients[client_count].public_key, public_key, sizeof(clients[client_count].public_key));
         clients[client_count].last_counter = 0;  // Start counter from 0
         client_count++;
+        printf("Client added\nSocket: %d\nPublic Key: %s\nCounter: %d\n",client_sock,public_key,clients[client_count-1].last_counter);
     } else {
         printf("Max client limit reached\n");
     }
@@ -57,53 +58,6 @@ void broadcast_public_message(int sender_sock, const char* message) {
             send_message_to_client(clients[i].socket, message);
         }
     }
-}
-
-// Function to manage incoming client connections
-void manage_clients(int server_sock) {
-    struct sockaddr_in client_addr;
-    socklen_t addr_len = sizeof(client_addr);
-    listen(server_sock, 128);
-
-    while (1) {
-        int *new_client_sock = malloc(sizeof(int));
-        if ((*new_client_sock = accept(server_sock, NULL, NULL)) < 0) {
-            perror("Failed to accept client connection");
-            free(new_client_sock);
-            continue;
-        }
-
-        // Placeholder public key (retrieve real key as part of your protocol)
-        char public_key[1024] = "SamplePublicKey";
-        add_client(*new_client_sock, public_key);
-
-        // Create a thread to handle the new client
-        pthread_t client_thread;
-        if (pthread_create(&client_thread, NULL, handle_client, new_client_sock) != 0) {
-            perror("Failed to create thread for new client");
-            close(*new_client_sock);
-            free(new_client_sock);
-        } else {
-            pthread_detach(client_thread);
-        }
-    }
-}
-
-// Function to handle individual clients
-void *handle_client(void *client_socket) {
-    int client_sock = *(int*)client_socket;
-    char message[BUFFER_SIZE];
-
-    // Receive messages from the client
-    while (recv(client_sock, message, sizeof(message), 0) > 0) {
-        // Process each message received from the client
-        process_client_message(client_sock, message);
-    }
-
-    // Close the socket when the client disconnects
-    close(client_sock);
-    free(client_socket);
-    return NULL;
 }
 
 // Extract a field from a JSON message
@@ -160,22 +114,24 @@ void forward_message_to_server(const char* destination_server, const char* messa
 // Process incoming message from client
 void process_client_message(int client_sock, const char* message) {
     // Extract fields from the JSON message
-    char* type = extract_field(message, "type");
+    char* type = extract_field(extract_field(message, "data"), "type");
     unsigned long counter = extract_counter(message);
     char* signature = extract_field(message, "signature");
 
     // Find the client and verify message
-    Client* client = find_client(client_sock);
-    if (client == NULL || counter <= client->last_counter || !verify_message(message, signature, client->public_key)) {
-        printf("Invalid message received\n");
-        return;
-    }
+    // Client* client = find_client(client_sock);
+    // if (client == NULL || counter <= client->last_counter /*|| !verify_message(message, signature, client->public_key)*/) {
+    //     printf("Invalid message received\n");
+    //     return;
+    // }
 
     // Update client's counter
-    client->last_counter = counter;
+    // client->last_counter = counter;
 
     // Route message based on type
-    if (strcmp(type, "chat") == 0) {
+    if (strcmp(type, "hello") == 0) {
+        add_client(client_sock, extract_field(extract_field(message, "data"), "public_key"));
+    } else if (strcmp(type, "chat") == 0) {
         handle_chat_message(client_sock, message);
     } else if (strcmp(type, "public_chat") == 0) {
         broadcast_public_message(client_sock, message);

@@ -5,7 +5,13 @@
 #include <unistd.h>  // For close() function
 #include <fcntl.h>
 #include <stdlib.h>
+#include <json-c/json.h>
 #include <netdb.h>
+#include <pthread.h>
+
+json_object *get_neighbourhood_clients(int socket) {
+
+}
 
 char *get_host_addr(void) {
 	char hostbuffer[256], *address;
@@ -20,13 +26,25 @@ char *get_host_addr(void) {
 
 void server_hello(int socket) {
 	char *message, *address;
+	json_object *message_json = json_object_new_object();
+	json_object *data_json = json_object_new_object();
 	
 	address = get_host_addr();
 	message = malloc(sizeof(char) * 128);
-	strncpy(message, "{\"data\":{\"type\":\"server_hello\",\"sender\":\"", 44);
-	strncat(message, address, strlen(address));
-	strncat(message, "\"}}", 4);
+	json_object_object_add(data_json, "type", json_object_get_string("server_hello"));
+	json_object_object_add(data_json, "sender", json_object_get_string(address));
+	json_object_object_add(message_json, "data", data_json);
+	message = json_object_to_json_string(message_json);
 	send(socket, message, strlen(message), 0);
+}
+
+void *handle_server_to_server(void *sock) {
+	int socket = *(int *)sock;
+	server_hello(socket);
+
+	close(socket);
+	free(sock);
+	return NULL;
 }
 
 int connect_to_neighbour(int socket) {
@@ -58,7 +76,19 @@ int connect_to_neighbour(int socket) {
 		dest_sock.sin_port = htons(dest_port);  // Convert port to network byte order
 		dest_sock.sin_addr.s_addr = inet_addr(dest_address);  // Server address (localhost)
 		connect(socket, (struct sockaddr *)&dest_sock, sizeof(dest_sock));
-		server_hello(socket);
+
+		pthread_t server_thread;
+		int *server_socket = malloc(sizeof(int));
+		*server_socket = socket;
+		if (pthread_create(&server_thread, NULL, handle_server_to_server, server_socket) != 0) {
+			perror("Failed to create thread for new server to server connection");
+			close(socket);
+			free(server_socket);
+		} else {
+			pthread_detach(server_thread);
+		}
+		free(dest_address);
+		free(dest_port_str);
 		server = strtok(NULL,"\n");
 	}
 	

@@ -8,58 +8,70 @@
 #include <openssl/sha.h>
 #include <json-c/json.h>  // Replacing jansson with json-c
 #include <openssl/aes.h>
+#include <libwebsockets.h>
+#include "Encryption.h"
 
 #define SERVER_PORT 8080  // Port to connect to
 
-// Base64 encoding function (pseudo-code, replace with a real implementation)
-char* base64_encode(const unsigned char* buffer, size_t length) {
-    // You'll need to use a real base64 encoding function, such as from OpenSSL or another library.
-    // This is just a placeholder.
-    return NULL;
-}
+// // Base64 encoding function (pseudo-code, replace with a real implementation)
+// char* base64_encode(const unsigned char* buffer, size_t length) {
+//     // You'll need to use a real base64 encoding function, such as from OpenSSL or another library.
+//     // This is just a placeholder.
+//     return NULL;
+// }
 
-char* sign_message(const char *message, int counter) {
-    // Combine message and counter into a single string
-    char full_message[512];
-    sprintf(full_message, "%s%d", message, counter);
+// char* sign_message(const char *message, int counter) {
+//     // Combine message and counter into a single string
+//     char full_message[512];
+//     sprintf(full_message, "%s%d", message, counter);
     
-    // Hash the message using SHA-256
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256((unsigned char*)full_message, strlen(full_message), hash);
+//     // Hash the message using SHA-256
+//     unsigned char hash[SHA256_DIGEST_LENGTH];
+//     SHA256((unsigned char*)full_message, strlen(full_message), hash);
 
-    // Load the private key
-    RSA *rsa = RSA_new();
-    FILE *fp = fopen("private.pem", "r");
-    PEM_read_RSAPrivateKey(fp, &rsa, NULL, NULL);
-    fclose(fp);
+//     // Load the private key
+//     RSA *rsa = RSA_new();
+//     FILE *fp = fopen("private.pem", "r");
+//     PEM_read_RSAPrivateKey(fp, &rsa, NULL, NULL);
+//     fclose(fp);
     
-    // Sign the hash
-    unsigned char *signature = malloc(RSA_size(rsa));
-    unsigned int signature_len;
-    RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, &signature_len, rsa);
+//     // Sign the hash
+//     unsigned char *signature = malloc(RSA_size(rsa));
+//     unsigned int signature_len;
+//     RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, &signature_len, rsa);
 
-    // Base64 encode the signature (replace this with a real base64 encoding implementation)
-    char *encoded_signature = base64_encode(signature, signature_len);
+//     // Base64 encode the signature (replace this with a real base64 encoding implementation)
+//     char *encoded_signature = base64_encode(signature, signature_len);
     
-    RSA_free(rsa);
-    free(signature);
+//     RSA_free(rsa);
+//     free(signature);
     
-    return encoded_signature;
-}
+//     return encoded_signature;
+// }
 
 void send_hello(int websocket) {
     // Create a new JSON object using json-c
     json_object *json_message = json_object_new_object();
     json_object *data = json_object_new_object();
+    EVP_PKEY *private_key = generate_rsa_key();
+    char *message, *signature;
+    
 
     // Create "hello" message
+    json_object_object_add(json_message, "type", json_object_new_string("signed_data"));
     json_object_object_add(data, "type", json_object_new_string("hello"));
-    json_object_object_add(data, "public_key", json_object_new_string("<Your Public Key PEM>"));
+    json_object_object_add(data, "public_key", json_object_new_string(get_public_key_pem(private_key)));
     json_object_object_add(json_message, "data", data);
+    json_object_object_add(json_message, "counter", json_object_new_int(0));
+    message = json_object_get_string(data);
+    signature = malloc(sizeof(char)*SIGNATURE_SIZE);
+    sign_message(private_key,message,strlen(message), signature);
+    json_object_object_add(json_message, "signature", json_object_new_string(signature));
 
     const char *json_str = json_object_to_json_string(json_message);
     // Assuming lws_write is used for WebSocket communication
-    lws_write(websocket, (unsigned char*)json_str, strlen(json_str), LWS_WRITE_TEXT);
+    
+    send(websocket, json_str, strlen(json_str), 0);
 
     json_object_put(json_message);  // Free memory
 }
@@ -94,7 +106,7 @@ void send_chat_message(int websocket, const char *message, const char *recipient
     json_object_object_add(json_message, "data", data);
 
     const char *json_str = json_object_to_json_string(json_message);
-    lws_write(websocket, (unsigned char*)json_str, strlen(json_str), LWS_WRITE_TEXT);
+    send(websocket, json_str, strlen(json_str), 0);
 
     json_object_put(json_message);  // Free memory
 }
@@ -178,10 +190,29 @@ char* create_client_list_response(const char** server_addresses, const char*** c
     return strdup(json_string_output);  // The caller should free this string after use
 }
 
+json_object *get_client_list(int socket) {
+    json_object *client_request, *response;
+    char *buffer;
+
+    client_request = json_object_new_object();
+    json_object_object_add(client_request, "type", json_object_new_string("client_list_request"));
+
+    const char *json_str = json_object_to_json_string(client_request);
+    
+    send(socket, json_str, strlen(json_str), 0);
+    json_object_put(client_request);
+    buffer = malloc(sizeof(char) * 65536);
+    recv(socket, buffer, 65536, 0);
+    response = json_tokener_parse(buffer);
+    free(buffer);
+    return response;
+}
+
 int main() {
     int sock;  // Socket descriptor
     struct sockaddr_in server_addr;  // Server address
-    char message[256] = "Hello, Server!";  // Message to send
+    char choice[16], message[256], *sender_fingerprint;
+    EVP_PKEY *recipient_key;
 
     // Create the socket (IPv4, TCP)
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -195,7 +226,21 @@ int main() {
     connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
 
     // Send the message to the server
-    send(sock, message, strlen(message), 0);
+    send_hello(sock);
+    printf("Connected to Server\n");
+    printf("Options:\n");
+    printf("type PRIVATE to send a private message.\n");
+    printf("type PUBLIC to send a public message to all.\n");
+    scanf(choice);
+    printf("What is your message? (MAX 256 characters)\n");
+    scanf(message);
+    if (strcmp(choice, "PRIVATE")) {
+        // TO DO: add logic to receive recipient as user input and locate their public key
+        send_chat_message(sock, message, recipient_key);
+    } else if (strcmp(choice, "PUBLIC")) {
+        create_public_chat(sender_fingerprint, message);
+    }
+    // send(sock, message, strlen(message), 0);
 
     // Close the socket
     close(sock);
