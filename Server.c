@@ -1,39 +1,49 @@
-#include <stdio.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>  // For socket functions and address structures
-#include <pthread.h>
-#include <unistd.h>  // For close() function
-#include <json-c/json.h>
 #include "Server2Server.h"
 #include "Server2Client.h"
+#include "Server.h"
 
-#define SERVER_PORT 8080  // Port to listen on
-#define BUFFER_SIZE 1024
+Client clients[MAX_CLIENTS];
+int client_count = 0;
+Server servers[MAX_SERVERS];
+int server_count = 0;
 
-typedef struct {
-    int server_socket;
-    int incoming_socket;
-} sockets;
+char *get_host_addr(void) {
+	char hostbuffer[256], *address;
+	struct hostent *host_entry;
+	int hostname;
+
+	hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+	host_entry = gethostbyname(hostbuffer);
+	address = inet_ntoa(*((struct in_addr*)host_entry->h_addr_list[0]));
+	return address;
+}
 
 // Function to handle individual connections
-void *handle_incoming_connection(void *input_socks) {
-    sockets *socks = input_socks;
+void *handle_incoming_connection(void *input_sock) {
+    int sock = *(int *)input_sock;
+    int recv_result;
     char message[BUFFER_SIZE];
 
     // Receive messages from the client
-    while (recv(socks->incoming_socket, message, sizeof(message), 0) > 0) {
+    while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
         // Process each message received from the client
         if (strcmp(extract_field(message, "type"), "signed_data") == 0) {
-            process_client_message(socks->incoming_socket, message);
+            process_client_message(sock, message);
         } else if (strcmp(extract_field(message, "type"), "client_list_request") == 0)  {
-            get_neighbourhood_clients(socks->server_socket);
+            // printf("here\n");
+            process_client_list_request(sock);
+        } else if (strcmp(extract_field(extract_field(message, "data"), "type"), "server_hello") == 0)  {
+            process_server_hello_received(sock, extract_field(extract_field(message, "data"),"sender"));
+        } else if (strcmp(extract_field(message, "type"), "client_update_request") == 0) {
+            process_client_update_request(sock);
         }
     }
-
+    if (recv_result < 0) {
+        perror("receive message from socket failed");
+    }
     // Close the socket when the client disconnects
-    close(socks->incoming_socket);
-    free(socks);
+    close(sock);
+    free(input_sock);
     return NULL;
 }
 
@@ -41,25 +51,24 @@ void *handle_incoming_connection(void *input_socks) {
 void manage_incoming_connections(int server_sock) {
     struct sockaddr_in conn_addr;
     socklen_t addr_len = sizeof(conn_addr);
-    sockets *socks = malloc(sizeof(sockets));
+    int *sock = malloc(sizeof(int));
     int new_conn_sock;
-    listen(server_sock, 128);
+    listen(server_sock, SOMAXCONN);
 
     while (1) {
         if ((new_conn_sock = accept(server_sock, (struct sockaddr *)&conn_addr, &addr_len)) < 0) {
             perror("Failed to accept client connection");
-            free(socks);
+            free(sock);
             continue;
         }        
 
         // Create a thread to handle the new client
         pthread_t conn_thread;
-        socks->server_socket = server_sock;
-        socks->incoming_socket = new_conn_sock;
-        if (pthread_create(&conn_thread, NULL, handle_incoming_connection, &socks) != 0) {
+        *sock = new_conn_sock;
+        if (pthread_create(&conn_thread, NULL, handle_incoming_connection, sock) != 0) {
             perror("Failed to create thread for new client");
             close(new_conn_sock);
-            free(socks);
+            free(sock);
         } else {
             pthread_detach(conn_thread);
         }
@@ -81,7 +90,7 @@ int main() {
     // Bind the socket to the specified port and IP
     bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
 
-    // connect_to_neighbour(sock);
+    connect_to_neighbour(sock);
 
     manage_incoming_connections(sock);
 

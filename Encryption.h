@@ -9,6 +9,8 @@
 #include <openssl/buffer.h>
 #include <string.h>
 #include <stdio.h>
+#include <openssl/err.h>
+#include <stdlib.h>
 
 // Define the RSA key size (2048 bits = 256 bytes)
 #define RSA_KEY_SIZE 2048

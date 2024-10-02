@@ -1,9 +1,9 @@
-#include <stdio.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>  // For socket functions and address structures
-#include <unistd.h>  // For close() function
-#include <fcntl.h>
+#ifndef SERVER2SERVER_H
+#define SERVER2SERVER_H
 
-void connect_to_neighbour(int);
-json_object *get_neighbourhood_clients(int);
+int connect_to_neighbour(int);
+void process_server_hello_received(int, const char*);
+void process_client_update_request(int socket);
+char *get_host_addr(void);
+
+#endif

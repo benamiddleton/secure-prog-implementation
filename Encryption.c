@@ -1,6 +1,4 @@
 #include "Encryption.h"
-#include <openssl/err.h>
-#include <stdlib.h>
 
 // Error handling 
 void handle_errors() {

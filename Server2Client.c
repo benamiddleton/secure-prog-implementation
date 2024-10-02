@@ -1,27 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <json-c/json.h>
-#include <pthread.h>
-#include "Server2Client.h"
-#include "Server2Server.h"
-#include "Encryption.h"
-#include <libwebsockets.h>
-#define MAX_CLIENTS 100
-#define BUFFER_SIZE 1024
-
-// Struct to hold client details
-typedef struct {
-    int socket;
-    char public_key[1024];  // PEM formatted RSA public key
-    unsigned long last_counter;
-} Client;
-
-Client clients[MAX_CLIENTS];
-int client_count = 0;
+#include "Server.h"
 
 // Add new client to the client list
 void add_client(int client_sock, const char* public_key) {
@@ -30,7 +7,7 @@ void add_client(int client_sock, const char* public_key) {
         strncpy(clients[client_count].public_key, public_key, sizeof(clients[client_count].public_key));
         clients[client_count].last_counter = 0;  // Start counter from 0
         client_count++;
-        printf("Client added\nSocket: %d\nPublic Key: %s\nCounter: %d\n",client_sock,public_key,clients[client_count-1].last_counter);
+        send(client_sock, "Hello received!", 15, 0);
     } else {
         printf("Max client limit reached\n");
     }
@@ -111,6 +88,38 @@ void forward_message_to_server(const char* destination_server, const char* messa
     // Open socket, send message, and close socket
 }
 
+void process_client_list_request(int socket) {
+    json_object *message_json, *server_array, *this_server;
+    char *message, *alloc_message;
+
+    message_json = json_object_new_object();
+    json_object_object_add(message_json, "type", json_object_new_string("client_list"));
+    server_array = json_object_new_array();
+    this_server = json_object_new_object();
+    json_object_object_add(this_server, "address", json_object_new_string(get_host_addr()));
+    json_object *this_server_client_array = json_object_new_array();
+    for (int i=0;i<client_count;i++) {
+        json_object_array_add(this_server_client_array, json_object_new_string(clients[i].public_key));
+    }
+    json_object_object_add(this_server, "clients", this_server_client_array);
+    json_object_array_add(server_array, this_server);
+    for (int i=0;i<server_count;i++) {
+        json_object *server = json_object_new_object();
+        json_object_object_add(server, "address", json_object_new_string(servers[i].address));
+        json_object *client_array = json_object_new_array();
+        for (int j=0;j<servers[i].server_client_count;j++) {
+            json_object_array_add(client_array, json_object_new_string(servers[i].clients[j]));
+        }
+        json_object_object_add(server, "clients", client_array);
+        json_object_array_add(server_array, server);
+    }
+    json_object_object_add(message_json, "servers", server_array);
+    message = json_object_to_json_string(message_json);
+    alloc_message = strdup(message);
+    // printf("%s\n", alloc_message);
+    send(socket, alloc_message, strlen(alloc_message), 0);
+}
+
 // Process incoming message from client
 void process_client_message(int client_sock, const char* message) {
     // Extract fields from the JSON message
@@ -145,11 +154,18 @@ void process_client_message(int client_sock, const char* message) {
 
 // Handle chat message routing
 void handle_chat_message(int sender_sock, const char* message) {
-    char* destination_server = extract_field(message, "destination_server");
-
+    char *data = extract_field(message, "data");
+    json_object *data_obj = json_tokener_parse(data);
+    json_object *dest_servers;
+    json_object_object_get_ex(data_obj, "destination_servers", &dest_servers);
+    json_object *dest = json_object_array_get_idx(dest_servers, 0);
+    char *destination_server = json_object_get_string(dest);
+    
+    
     if (strcmp(destination_server, get_local_server_address()) == 0) {
         // Route message to the appropriate client on this server
         char* recipient_fingerprint = extract_recipient_fingerprint(message);
+        printf("here\n");
         int recipient_sock = find_client_by_fingerprint(recipient_fingerprint);
         send_message_to_client(recipient_sock, message);
         free(recipient_fingerprint);

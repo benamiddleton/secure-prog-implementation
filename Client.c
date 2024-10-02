@@ -13,6 +13,11 @@
 
 #define SERVER_PORT 8080  // Port to connect to
 
+char public_keys[100][1024];
+int public_key_count = 0;
+int counter = 0;
+EVP_PKEY *private_key;
+
 // // Base64 encoding function (pseudo-code, replace with a real implementation)
 // char* base64_encode(const unsigned char* buffer, size_t length) {
 //     // You'll need to use a real base64 encoding function, such as from OpenSSL or another library.
@@ -53,7 +58,7 @@ void send_hello(int websocket) {
     // Create a new JSON object using json-c
     json_object *json_message = json_object_new_object();
     json_object *data = json_object_new_object();
-    EVP_PKEY *private_key = generate_rsa_key();
+    private_key = generate_rsa_key();
     char *message, *signature;
     
 
@@ -62,34 +67,42 @@ void send_hello(int websocket) {
     json_object_object_add(data, "type", json_object_new_string("hello"));
     json_object_object_add(data, "public_key", json_object_new_string(get_public_key_pem(private_key)));
     json_object_object_add(json_message, "data", data);
-    json_object_object_add(json_message, "counter", json_object_new_int(0));
+    json_object_object_add(json_message, "counter", json_object_new_int(counter++));
     message = json_object_get_string(data);
     signature = malloc(sizeof(char)*SIGNATURE_SIZE);
     sign_message(private_key,message,strlen(message), signature);
     json_object_object_add(json_message, "signature", json_object_new_string(signature));
-
+    
     const char *json_str = json_object_to_json_string(json_message);
     // Assuming lws_write is used for WebSocket communication
-    
-    send(websocket, json_str, strlen(json_str), 0);
+    if (send(websocket, strdup(json_str), strlen(json_str), 0) < 0) {
+        perror("failed to send hello");
+    }
 
     json_object_put(json_message);  // Free memory
+
+    char buffer[1024];
+    recv(websocket, buffer, sizeof(buffer), 0);
+    printf("%s\n", buffer);
 }
 
 void send_chat_message(int websocket, const char *message, const char *recipient_public_key) {
     // Encrypt the message using AES
     unsigned char aes_key[32];  // Generate a random AES key
-    unsigned char iv[AES_BLOCK_SIZE];
+    unsigned char *iv = malloc(sizeof(unsigned char)*AES_BLOCK_SIZE);
+    int num = 0;
     AES_KEY encrypt_key;
     AES_set_encrypt_key(aes_key, 256, &encrypt_key);
 
-    unsigned char encrypted_message[256];
-    AES_cfb128_encrypt((unsigned char*)message, encrypted_message, strlen(message), &encrypt_key, iv, NULL, AES_ENCRYPT);
+    unsigned char *encrypted_message = malloc(sizeof(unsigned char) * 256);
+    AES_cfb128_encrypt((unsigned char*)message, encrypted_message, strlen(message), &encrypt_key, iv, &num, AES_ENCRYPT);
+    
 
     // Encrypt the AES key with recipient's RSA public key
     RSA *rsa = RSA_new();
-    FILE *fp = fopen("recipient_public.pem", "r");
+    FILE *fp = fopen("recipient_public.pem", "rw");
     PEM_read_RSA_PUBKEY(fp, &rsa, NULL, NULL);
+    printf("here\n");
     fclose(fp);
 
     unsigned char encrypted_key[256];
@@ -99,13 +112,22 @@ void send_chat_message(int websocket, const char *message, const char *recipient
     // Create the JSON message using json-c
     json_object *json_message = json_object_new_object();
     json_object *data = json_object_new_object();
+    json_object_object_add(json_message, "type", json_object_new_string("signed_data"));
     json_object_object_add(data, "type", json_object_new_string("chat"));
+    json_object *dest_servers = json_object_new_array();
+    json_object_array_add(dest_servers, json_object_new_string("127.0.0.1"));
+    json_object_object_add(data, "destination_servers", dest_servers);
     json_object_object_add(data, "iv", json_object_new_string(base64_encode(iv, AES_BLOCK_SIZE)));
     json_object_object_add(data, "symm_keys", json_object_new_string(base64_encode(encrypted_key, encrypted_key_len)));
     json_object_object_add(data, "chat", json_object_new_string(base64_encode(encrypted_message, sizeof(encrypted_message))));
     json_object_object_add(json_message, "data", data);
+    json_object_object_add(json_message, "counter", json_object_new_int(counter++));
+    char *signature = malloc(sizeof(char)*SIGNATURE_SIZE);
+    sign_message(private_key,message,strlen(message), signature);
+    json_object_object_add(json_message, "signature", json_object_new_string(signature));
 
     const char *json_str = json_object_to_json_string(json_message);
+    printf("%s\n", json_str);
     send(websocket, json_str, strlen(json_str), 0);
 
     json_object_put(json_message);  // Free memory
@@ -134,65 +156,9 @@ char* create_public_chat(const char* sender_fingerprint, const char* message) {
     return strdup(json_string_output);  // The caller should free this string after use
 }
 
-// Function to create a JSON client list request
-char* create_client_list_request() {
-    // Create a new JSON object using json-c
-    json_object *root = json_object_new_object();
-
-    // Add the "type" field to indicate a client list request
-    json_object_object_add(root, "type", json_object_new_string("client_list_request"));
-
-    // Convert JSON object to a string
-    const char *json_string_output = json_object_to_json_string(root);
-
-    // Free the JSON object
-    json_object_put(root);
-
-    return strdup(json_string_output);  // The caller should free this string after use
-}
-
-// Function to create a JSON client list response
-char* create_client_list_response(const char** server_addresses, const char*** clients, int server_count) {
-    // Create the root JSON object using json-c
-    json_object *root = json_object_new_object();
-    json_object_object_add(root, "type", json_object_new_string("client_list"));
-
-    // Create a JSON array to hold the servers
-    json_object *servers_array = json_object_new_array();
-
-    for (int i = 0; i < server_count; i++) {
-        // Create a JSON object for each server
-        json_object *server_obj = json_object_new_object();
-        json_object_object_add(server_obj, "address", json_object_new_string(server_addresses[i]));
-
-        // Create a JSON array for clients
-        json_object *clients_array = json_object_new_array();
-        for (int j = 0; clients[i][j] != NULL; j++) {
-            json_object_array_add(clients_array, json_object_new_string(clients[i][j]));
-        }
-
-        // Add the clients array to the server object
-        json_object_object_add(server_obj, "clients", clients_array);
-
-        // Add the server object to the servers array
-        json_object_array_add(servers_array, server_obj);
-    }
-
-    // Add the servers array to the root object
-    json_object_object_add(root, "servers", servers_array);
-
-    // Convert JSON object to a string
-    const char *json_string_output = json_object_to_json_string(root);
-
-    // Free the JSON objects
-    json_object_put(root);
-
-    return strdup(json_string_output);  // The caller should free this string after use
-}
-
-json_object *get_client_list(int socket) {
-    json_object *client_request, *response;
-    char *buffer;
+void get_client_list(int socket) {
+    json_object *client_request, *response, *servers_json, *clients_json;
+    char buffer[65536], *list;
 
     client_request = json_object_new_object();
     json_object_object_add(client_request, "type", json_object_new_string("client_list_request"));
@@ -200,18 +166,31 @@ json_object *get_client_list(int socket) {
     const char *json_str = json_object_to_json_string(client_request);
     
     send(socket, json_str, strlen(json_str), 0);
+    
     json_object_put(client_request);
-    buffer = malloc(sizeof(char) * 65536);
-    recv(socket, buffer, 65536, 0);
-    response = json_tokener_parse(buffer);
-    free(buffer);
-    return response;
+    recv(socket, buffer, sizeof(buffer), 0);
+    
+    list = strdup(buffer);
+    response = json_tokener_parse(list);
+    json_object_object_get_ex(response, "servers", &servers_json);
+    int servers_len = json_object_array_length(servers_json);
+    for (int i=0;i<servers_len;i++) {
+        json_object *server = json_object_array_get_idx(servers_json, i);
+        json_object_object_get_ex(server, "clients", &clients_json);
+        int clients_len = json_object_array_length(clients_json);
+        for (int j=0;j<clients_len;j++) {
+            json_object *client = json_object_array_get_idx(clients_json, j);
+            strcpy(public_keys[j], json_object_get_string(client));
+            public_key_count++;
+        }
+    }
+    // return list;
 }
 
 int main() {
-    int sock;  // Socket descriptor
+    int sock, choice;  // Socket descriptor
     struct sockaddr_in server_addr;  // Server address
-    char choice[16], message[256], *sender_fingerprint;
+    char *message, *sender_fingerprint;
     EVP_PKEY *recipient_key;
 
     // Create the socket (IPv4, TCP)
@@ -224,20 +203,23 @@ int main() {
 
     // Connect to the server
     connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
-
     // Send the message to the server
     send_hello(sock);
+    // printf("here\n");
+    get_client_list(sock);
+    // printf("%s\n", public_keys[0]);
     printf("Connected to Server\n");
     printf("Options:\n");
-    printf("type PRIVATE to send a private message.\n");
-    printf("type PUBLIC to send a public message to all.\n");
-    scanf(choice);
+    printf("type 1 to send a private message.\n");
+    printf("type 2 to send a public message to all.\n");
+    scanf("%d", &choice);
     printf("What is your message? (MAX 256 characters)\n");
-    scanf(message);
-    if (strcmp(choice, "PRIVATE")) {
+    message = malloc(sizeof(char) * 256);
+    scanf("%s", message);
+    if (choice == 1) {
         // TO DO: add logic to receive recipient as user input and locate their public key
-        send_chat_message(sock, message, recipient_key);
-    } else if (strcmp(choice, "PUBLIC")) {
+        send_chat_message(sock, message, public_keys[0]);
+    } else if (choice == 2) {
         create_public_chat(sender_fingerprint, message);
     }
     // send(sock, message, strlen(message), 0);

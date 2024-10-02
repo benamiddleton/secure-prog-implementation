@@ -8,5 +8,6 @@ void broadcast_public_message(int sender_sock, const char* message);  // Broadca
 void handle_chat_message(int sender_sock, const char* message);  // Handle chat message routing
 void process_client_message(int client_sock, const char* message);  // Process incoming client messages
 char* extract_field(const char* message, const char* field);
+void process_client_list_request(int socket);
 
 #endif
