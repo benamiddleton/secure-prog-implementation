@@ -193,6 +193,10 @@ int main() {
 
     // Create the socket (IPv4, TCP)
     sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
 
     // Set up the server address (IP and port)
     server_addr.sin_family = AF_INET;  // IPv4
@@ -200,9 +204,15 @@ int main() {
     server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");  // Server address (localhost)
 
     // Connect to the server
-    connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    //connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
     // Send the message to the server
+    if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Connection to server failed");
+        close(sock);
+        exit(EXIT_FAILURE);
+    }
     send_hello(sock);
+    printf("hello");
     get_client_list(sock);
     // printf("%s\n", public_keys[0]);
     printf("Connected to Server\n");

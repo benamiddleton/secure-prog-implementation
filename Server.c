@@ -62,6 +62,8 @@ void manage_incoming_connections(int server_sock) {
         }        
 
         // Create a thread to handle the new client
+        printf("Client connected");
+        fflush(stdout);
         pthread_t conn_thread;
         *sock = new_conn_sock;
         if (pthread_create(&conn_thread, NULL, handle_incoming_connection, sock) != 0) {
@@ -75,11 +77,17 @@ void manage_incoming_connections(int server_sock) {
 }
 
 int main() {
+    printf("1 socket");
+    fflush(stdout);
     int sock; // Server socket descriptor. Moved client socket to Client struct
     struct sockaddr_in server_addr; // Server address structure
+    printf("2 socket");
+    fflush(stdout);
 
     // Create the socket (IPv4, TCP)
     sock = socket(AF_INET, SOCK_STREAM, 0);
+    printf("after socket");
+    fflush(stdout);
 
     // Set up the server address (IP and port)
     server_addr.sin_family = AF_INET;  // IPv4
@@ -88,10 +96,14 @@ int main() {
 
     // Bind the socket to the specified port and IP
     bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    printf("after bind");
+    fflush(stdout);
 
     connect_to_neighbour(sock);
 
     manage_incoming_connections(sock);
+    printf("after manage");
+    fflush(stdout);
 
     // Close the client and server sockets
     close(sock);
