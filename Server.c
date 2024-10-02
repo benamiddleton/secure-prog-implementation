@@ -30,7 +30,6 @@ void *handle_incoming_connection(void *input_sock) {
         if (strcmp(extract_field(message, "type"), "signed_data") == 0) {
             process_client_message(sock, message);
         } else if (strcmp(extract_field(message, "type"), "client_list_request") == 0)  {
-            // printf("here\n");
             process_client_list_request(sock);
         } else if (strcmp(extract_field(extract_field(message, "data"), "type"), "server_hello") == 0)  {
             process_server_hello_received(sock, extract_field(extract_field(message, "data"),"sender"));

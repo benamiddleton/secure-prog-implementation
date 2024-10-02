@@ -102,7 +102,6 @@ void send_chat_message(int websocket, const char *message, const char *recipient
     RSA *rsa = RSA_new();
     FILE *fp = fopen("recipient_public.pem", "rw");
     PEM_read_RSA_PUBKEY(fp, &rsa, NULL, NULL);
-    printf("here\n");
     fclose(fp);
 
     unsigned char encrypted_key[256];
@@ -127,7 +126,6 @@ void send_chat_message(int websocket, const char *message, const char *recipient
     json_object_object_add(json_message, "signature", json_object_new_string(signature));
 
     const char *json_str = json_object_to_json_string(json_message);
-    printf("%s\n", json_str);
     send(websocket, json_str, strlen(json_str), 0);
 
     json_object_put(json_message);  // Free memory
@@ -205,7 +203,6 @@ int main() {
     connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
     // Send the message to the server
     send_hello(sock);
-    // printf("here\n");
     get_client_list(sock);
     // printf("%s\n", public_keys[0]);
     printf("Connected to Server\n");

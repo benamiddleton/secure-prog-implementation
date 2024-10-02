@@ -165,7 +165,6 @@ void handle_chat_message(int sender_sock, const char* message) {
     if (strcmp(destination_server, get_local_server_address()) == 0) {
         // Route message to the appropriate client on this server
         char* recipient_fingerprint = extract_recipient_fingerprint(message);
-        printf("here\n");
         int recipient_sock = find_client_by_fingerprint(recipient_fingerprint);
         send_message_to_client(recipient_sock, message);
         free(recipient_fingerprint);
