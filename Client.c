@@ -8,7 +8,6 @@
 #include <openssl/sha.h>
 #include <json-c/json.h>  // Replacing jansson with json-c
 #include <openssl/aes.h>
-#include <libwebsockets.h>
 #include "Encryption.h"
 
 #define SERVER_PORT 8080  // Port to connect to
