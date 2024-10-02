@@ -32,6 +32,7 @@ void send_message_to_client(int client_sock, const char* message) {
 void broadcast_public_message(int sender_sock, const char* message) {
     for (int i = 0; i < client_count; i++) {
         //if (clients[i].socket != sender_sock) {
+        printf("test - %s", message);
         send_message_to_client(clients[i].socket, message);
         //}
     }
@@ -122,6 +123,8 @@ void process_client_list_request(int socket) {
 
 // Process incoming message from client
 void process_client_message(int client_sock, const char* message) {
+    printf("TEST");
+
     // Extract fields from the JSON message
     char* type = extract_field(extract_field(message, "data"), "type");
     unsigned long counter = extract_counter(message);

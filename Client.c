@@ -80,6 +80,9 @@ char* send_hello(int websocket) {
         perror("failed to send hello");
     }
 
+    printf("%s", message);
+    fflush(stdout);
+
     json_object_put(json_message);  // Free memory
 
     char buffer[1024];
@@ -152,6 +155,9 @@ char* create_public_chat(const char* sender_fingerprint, const char* message) {
 
     // Convert JSON object to a string
     const char *json_string_output = json_object_to_json_string(root);
+
+    printf("%s", json_string_output);
+    fflush(stdout);
 
     // Free the JSON objects
     json_object_put(root);
@@ -253,6 +259,8 @@ int main() {
         create_public_chat(sender_fingerprint, message);
     }
     // send(sock, message, strlen(message), 0);
+
+    receive_message(sock);
 
     // Close the socket
     close(sock);

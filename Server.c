@@ -24,6 +24,8 @@ void *handle_incoming_connection(void *input_sock) {
     int recv_result;
     char message[BUFFER_SIZE];
 
+    //printf("start of handle");
+
     // Receive messages from the client
     while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
         // Process each message received from the client
@@ -35,6 +37,8 @@ void *handle_incoming_connection(void *input_sock) {
             process_server_hello_received(sock, extract_field(extract_field(message, "data"),"sender"));
         } else if (strcmp(extract_field(message, "type"), "client_update_request") == 0) {
             process_client_update_request(sock);
+        } else if (strcmp(extract_field(extract_field(message, "data"), "type"), "public_chat") == 0) {
+            process_client_message(sock, message);
         }
     }
     if (recv_result < 0) {
@@ -68,6 +72,7 @@ void manage_incoming_connections(int server_sock) {
         *sock = new_conn_sock;
         if (pthread_create(&conn_thread, NULL, handle_incoming_connection, sock) != 0) {
             perror("Failed to create thread for new client");
+            //handle_incoming_connection(sock);
             close(new_conn_sock);
             free(sock);
         } else {
