@@ -190,6 +190,21 @@ void get_client_list(int socket) {
     // return list;
 }
 
+void receive_message(int socket) {
+    char buffer[1024];  // Buffer to store received data
+    memset(buffer, 0, sizeof(buffer));  // Clear buffer
+
+    ssize_t bytes_received = recv(socket, buffer, sizeof(buffer) - 1, 0);
+    if (bytes_received < 0) {
+        perror("recv failed");
+    } else if (bytes_received == 0) {
+        printf("Connection closed by the server.\n");
+    } else {
+        buffer[bytes_received] = '\0';  // Null-terminate the received data
+        printf("Received message from server: %s\n", buffer);
+    }
+}
+
 int main() {
     int sock, choice;  // Socket descriptor
     struct sockaddr_in server_addr;  // Server address

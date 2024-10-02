@@ -31,9 +31,9 @@ void send_message_to_client(int client_sock, const char* message) {
 // Broadcast public message to all clients
 void broadcast_public_message(int sender_sock, const char* message) {
     for (int i = 0; i < client_count; i++) {
-        if (clients[i].socket != sender_sock) {
-            send_message_to_client(clients[i].socket, message);
-        }
+        //if (clients[i].socket != sender_sock) {
+        send_message_to_client(clients[i].socket, message);
+        //}
     }
 }
 
@@ -126,6 +126,9 @@ void process_client_message(int client_sock, const char* message) {
     char* type = extract_field(extract_field(message, "data"), "type");
     unsigned long counter = extract_counter(message);
     char* signature = extract_field(message, "signature");
+
+    printf("%s", message);
+    fflush(stdout);
 
     // Find the client and verify message
     // Client* client = find_client(client_sock);
