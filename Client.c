@@ -54,18 +54,19 @@ EVP_PKEY *private_key;
 //     return encoded_signature;
 // }
 
-void send_hello(int websocket) {
+char* send_hello(int websocket) {
     // Create a new JSON object using json-c
     json_object *json_message = json_object_new_object();
     json_object *data = json_object_new_object();
     private_key = generate_rsa_key();
-    char *message, *signature;
+    char *message, *signature, *public_key;
+    public_key = get_public_key_pem(private_key);
     
 
     // Create "hello" message
     json_object_object_add(json_message, "type", json_object_new_string("signed_data"));
     json_object_object_add(data, "type", json_object_new_string("hello"));
-    json_object_object_add(data, "public_key", json_object_new_string(get_public_key_pem(private_key)));
+    json_object_object_add(data, "public_key", json_object_new_string(public_key));
     json_object_object_add(json_message, "data", data);
     json_object_object_add(json_message, "counter", json_object_new_int(counter++));
     message = json_object_get_string(data);
@@ -84,6 +85,8 @@ void send_hello(int websocket) {
     char buffer[1024];
     recv(websocket, buffer, sizeof(buffer), 0);
     printf("%s\n", buffer);
+
+    return(public_key);
 }
 
 void send_chat_message(int websocket, const char *message, const char *recipient_public_key) {
@@ -138,8 +141,10 @@ char* create_public_chat(const char* sender_fingerprint, const char* message) {
 
     // Add fields to the JSON object
     json_object_object_add(data_obj, "type", json_object_new_string("public_chat"));
-    json_object_object_add(data_obj, "sender", json_object_new_string(sender_fingerprint));
+    json_object_object_add(data_obj, "sender", json_object_new_string(sender_fingerprint)); 
     json_object_object_add(data_obj, "message", json_object_new_string(message));
+
+
 
     // Wrap the data object into a top-level object
     json_object *root = json_object_new_object();
@@ -188,7 +193,7 @@ void get_client_list(int socket) {
 int main() {
     int sock, choice;  // Socket descriptor
     struct sockaddr_in server_addr;  // Server address
-    char *message, *sender_fingerprint;
+    char *message, *sender_fingerprint, *public_key;
     EVP_PKEY *recipient_key;
 
     // Create the socket (IPv4, TCP)
@@ -211,8 +216,10 @@ int main() {
         close(sock);
         exit(EXIT_FAILURE);
     }
-    send_hello(sock);
-    printf("hello");
+    public_key = send_hello(sock);
+    // need to make this 'Base64Encode(SHA-256(exported RSA public key))'
+    sender_fingerprint = public_key;
+    // printf("hello");
     get_client_list(sock);
     // printf("%s\n", public_keys[0]);
     printf("Connected to Server\n");
@@ -227,6 +234,7 @@ int main() {
         // TO DO: add logic to receive recipient as user input and locate their public key
         send_chat_message(sock, message, public_keys[0]);
     } else if (choice == 2) {
+        // make sender fingerprint an actual fingerprint
         create_public_chat(sender_fingerprint, message);
     }
     // send(sock, message, strlen(message), 0);
