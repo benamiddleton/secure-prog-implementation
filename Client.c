@@ -9,6 +9,7 @@
 #include <json-c/json.h>  // Replacing jansson with json-c
 #include <openssl/aes.h>
 #include "Encryption.h"
+#include "Server2Client.h"
 
 #define SERVER_PORT 8080  // Port to connect to
 
@@ -159,6 +160,8 @@ char* create_public_chat(int websocket, const char* sender_fingerprint, const ch
     fflush(stdout);
 
     send(websocket, json_string_output, strlen(json_string_output), 0);
+
+    //handle_chat_message(websocket, *json_string_output);
 
     // Free the JSON objects
     json_object_put(root);

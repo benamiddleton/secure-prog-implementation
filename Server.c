@@ -31,14 +31,24 @@ void *handle_incoming_connection(void *input_sock) {
         printf("Received message: %s\n", message);
         // Process each message received from the client
         if (strcmp(extract_field(message, "type"), "signed_data") == 0) {
+            printf("SIGNED");
+            fflush(stdout);
             process_client_message(sock, message);
         } else if (strcmp(extract_field(message, "type"), "client_list_request") == 0)  {
+            printf("LISTREQUEST");
+            fflush(stdout);
             process_client_list_request(sock);
         } else if (strcmp(extract_field(extract_field(message, "data"), "type"), "server_hello") == 0)  {
+            printf("HELLORECEIVED");
+            fflush(stdout);
             process_server_hello_received(sock, extract_field(extract_field(message, "data"),"sender"));
         } else if (strcmp(extract_field(message, "type"), "client_update_request") == 0) {
+            printf("UPDATEREQUEST");
+            fflush(stdout);
             process_client_update_request(sock);
         } else if (strcmp(extract_field(extract_field(message, "data"), "type"), "public_chat") == 0) {
+            printf("PUBLIC");
+            fflush(stdout);
             process_client_message(sock, message);
         }
     }
