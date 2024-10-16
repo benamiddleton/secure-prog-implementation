@@ -22,7 +22,7 @@ char *get_host_addr(void) {
 void *handle_incoming_connection(void *input_sock) {
     int sock = *(int *)input_sock;
     int recv_result;
-    char message[BUFFER_SIZE];
+    char message[10000];
 
     //printf("start of handle");
 
@@ -50,7 +50,7 @@ void *handle_incoming_connection(void *input_sock) {
             printf("PUBLIC");
             fflush(stdout);
             process_client_message(sock, message);
-        }
+        } else {printf("NOTWORKING");}
     }
     if (recv_result < 0) {
         perror("receive message from socket failed");
