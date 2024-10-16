@@ -2,6 +2,12 @@
 #include "Server2Client.h"
 #include "Server.h"
 
+#define MAX_FILE_SIZE 1024 * 1024 * 10 // Example: max 100MB for a file
+#define CHUNK_SIZE 1024                 // Size of each chunk received
+#define FILE_TRANSFER_START "file_transfer_start"
+#define FILE_TRANSFER_END "file_transfer_end"
+#define FILE_NAME "received_file.bin"
+
 Client clients[MAX_CLIENTS];
 int client_count = 0;
 Server servers[MAX_SERVERS];
@@ -18,6 +24,38 @@ char *get_host_addr(void) {
 	return address;
 }
 
+// Function to receive file from the client
+void receive_file(int sock) {
+    char buffer[CHUNK_SIZE];
+    FILE *file = fopen(FILE_NAME, "wb"); // Open file to write binary data
+
+    if (file == NULL) {
+        perror("Failed to open file");
+        return;
+    }
+
+    ssize_t bytes_received;
+    printf("Starting file reception...\n");
+
+    // Receive file data in chunks
+    while ((bytes_received = recv(sock, buffer, CHUNK_SIZE, 0)) > 0) {
+        fwrite(buffer, sizeof(char), bytes_received, file);
+
+        // Check if the client sent end of file signal
+        if (strstr(buffer, FILE_TRANSFER_END) != NULL) {
+            printf("File transfer completed.\n");
+            break;
+        }
+    }
+
+    if (bytes_received < 0) {
+        perror("Failed to receive file");
+    }
+
+    fclose(file);
+    printf("File saved as: %s\n", FILE_NAME);
+}
+
 // Function to handle individual connections
 void *handle_incoming_connection(void *input_sock) {
     int sock = *(int *)input_sock;
@@ -30,7 +68,10 @@ void *handle_incoming_connection(void *input_sock) {
     while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
         printf("Received message: %s\n", message);
         // Process each message received from the client
-        if (strcmp(extract_field(message, "type"), "signed_data") == 0) {
+        if (strcmp(message, FILE_TRANSFER_START) == 0) { // Check for file transfer start
+            printf("File transfer initiated.\n");
+            receive_file(sock); // Call function to receive file
+        } else if (strcmp(extract_field(message, "type"), "signed_data") == 0) {
             printf("SIGNED");
             fflush(stdout);
             process_client_message(sock, message);

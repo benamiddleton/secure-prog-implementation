@@ -10,8 +10,11 @@
 #include <openssl/aes.h>
 #include "Encryption.h"
 #include "Server2Client.h"
+#include <fcntl.h>   // For file handling
+#include <sys/stat.h>
 
 #define SERVER_PORT 8080  // Port to connect to
+#define CHUNK_SIZE 1024
 
 char public_keys[100][1024];
 int public_key_count = 0;
@@ -159,12 +162,19 @@ char* create_public_chat(int websocket, const char* sender_fingerprint, const ch
     printf("%s", json_string_output);
     fflush(stdout);
 
-    send(websocket, json_string_output, strlen(json_string_output), 0);
+    //send(websocket, strdup(json_string_output), strlen(json_string_output), 0);
 
+    if (send(websocket, json_string_output, strlen(json_string_output), 0) < 0) {
+    perror("Failed to send public chat message");
+}
     //handle_chat_message(websocket, *json_string_output);
 
     // Free the JSON objects
     json_object_put(root);
+
+    char buffer[1024];
+    recv(websocket, buffer, sizeof(buffer), 0);
+    printf("%s\n", buffer);
 
     return strdup(json_string_output);  // The caller should free this string after use
 }
@@ -215,11 +225,63 @@ void receive_message(int socket) {
     }
 }
 
+// Function to send a file over the socket
+void send_file(int socket, const char *file_path) {
+    // Open the file
+    FILE *file = fopen(file_path, "rb");
+    if (file == NULL) {
+        perror("Failed to open file");
+        return;
+    }
+
+    // Get the file size
+    struct stat file_stat;
+    if (stat(file_path, &file_stat) < 0) {
+        perror("Failed to get file size");
+        fclose(file);
+        return;
+    }
+    long file_size = file_stat.st_size;
+
+    // Send the file size to the server
+    if (send(socket, &file_size, sizeof(file_size), 0) < 0) {
+        perror("Failed to send file size");
+        fclose(file);
+        return;
+    }
+
+    // Send the file data in chunks
+    char buffer[CHUNK_SIZE];
+    size_t bytes_read;
+    while ((bytes_read = fread(buffer, 1, CHUNK_SIZE, file)) > 0) {
+        if (send(socket, buffer, bytes_read, 0) < 0) {
+            perror("Failed to send file chunk");
+            break;
+        }
+    }
+
+    // Check if the entire file was sent successfully
+    if (feof(file)) {
+        printf("File transfer complete.\n");
+    } else {
+        printf("File transfer failed.\n");
+    }
+
+    // Close the file
+    fclose(file);
+
+    // Optionally, wait for a confirmation response from the server
+    char response[256];
+    recv(socket, response, sizeof(response), 0);
+    printf("Server response: %s\n", response);
+}
+
 int main() {
     int sock, choice;  // Socket descriptor
     struct sockaddr_in server_addr;  // Server address
     char *message, *sender_fingerprint, *public_key;
     EVP_PKEY *recipient_key;
+    char file_path[256];  // To store the file path input
 
     // Create the socket (IPv4, TCP)
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -251,18 +313,26 @@ int main() {
     printf("Options:\n");
     printf("type 1 to send a private message.\n");
     printf("type 2 to send a public message to all.\n");
+    printf("type 3 to send a file to the server.\n");
     scanf("%d", &choice);
-    printf("What is your message? (MAX 256 characters)\n");
-    message = malloc(sizeof(char) * 256);
-    scanf("%s", message);
     if (choice == 1) {
+        printf("What is your message? (MAX 256 characters)\n");
+        message = malloc(sizeof(char) * 256);
+        scanf("%s", message);
         // TO DO: add logic to receive recipient as user input and locate their public key
         send_chat_message(sock, message, public_keys[0]);
     } else if (choice == 2) {
+        printf("What is your message? (MAX 256 characters)\n");
+        message = malloc(sizeof(char) * 256);
+        scanf("%s", message);
         // make sender fingerprint an actual fingerprint
         create_public_chat(sock, sender_fingerprint, message);
+      } else if (choice == 3) {
+        printf("Enter the path of the file to send:\n");
+        scanf("%s", file_path);
+        send_file(sock, file_path);  // Call the file transfer function
     }
-    // send(sock, message, strlen(message), 0);
+    
 
     receive_message(sock);
 
