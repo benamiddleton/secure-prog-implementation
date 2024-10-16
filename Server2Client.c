@@ -145,10 +145,14 @@ void process_client_message(int client_sock, const char* message) {
 
     // Route message based on type
     if (strcmp(type, "hello") == 0) {
+        printf("POGGG");
+    fflush(stdout);
         add_client(client_sock, extract_field(extract_field(message, "data"), "public_key"));
     } else if (strcmp(type, "chat") == 0) {
         handle_chat_message(client_sock, message);
     } else if (strcmp(type, "public_chat") == 0) {
+        printf("WOOOO");
+    fflush(stdout);
         broadcast_public_message(client_sock, message);
     } else {
         printf("Unknown message type: %s\n", type);

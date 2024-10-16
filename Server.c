@@ -28,6 +28,7 @@ void *handle_incoming_connection(void *input_sock) {
 
     // Receive messages from the client
     while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
+        printf("Received message: %s\n", message);
         // Process each message received from the client
         if (strcmp(extract_field(message, "type"), "signed_data") == 0) {
             process_client_message(sock, message);

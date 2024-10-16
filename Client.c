@@ -137,7 +137,7 @@ void send_chat_message(int websocket, const char *message, const char *recipient
 }
 
 // Function to create a JSON public chat message
-char* create_public_chat(const char* sender_fingerprint, const char* message) {
+char* create_public_chat(int websocket, const char* sender_fingerprint, const char* message) {
     // Create a new JSON object using json-c
     json_object *data_obj = json_object_new_object();
 
@@ -154,9 +154,11 @@ char* create_public_chat(const char* sender_fingerprint, const char* message) {
 
     // Convert JSON object to a string
     const char *json_string_output = json_object_to_json_string(root);
-
+    printf("HERE");
     printf("%s", json_string_output);
     fflush(stdout);
+
+    send(websocket, json_string_output, strlen(json_string_output), 0);
 
     // Free the JSON objects
     json_object_put(root);
@@ -255,7 +257,7 @@ int main() {
         send_chat_message(sock, message, public_keys[0]);
     } else if (choice == 2) {
         // make sender fingerprint an actual fingerprint
-        create_public_chat(sender_fingerprint, message);
+        create_public_chat(sock, sender_fingerprint, message);
     }
     // send(sock, message, strlen(message), 0);
 
