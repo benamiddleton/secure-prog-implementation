@@ -151,32 +151,32 @@ char* create_public_chat(int websocket, const char* sender_fingerprint, const ch
     json_object_object_add(data_obj, "message", json_object_new_string(message));
 
 
-
     // Wrap the data object into a top-level object
     json_object *root = json_object_new_object();
     json_object_object_add(root, "data", data_obj);
 
     // Convert JSON object to a string
     const char *json_string_output = json_object_to_json_string(root);
+    char *json_string_copy = strdup(json_string_output);
     printf("HERE");
     printf("%s", json_string_output);
     fflush(stdout);
 
     //send(websocket, strdup(json_string_output), strlen(json_string_output), 0);
 
-    if (send(websocket, json_string_output, strlen(json_string_output), 0) < 0) {
-    perror("Failed to send public chat message");
-}
+     if (send(websocket, json_string_copy, strlen(json_string_copy), 0) < 0) {
+        perror("Failed to send public chat message");
+    }
     //handle_chat_message(websocket, *json_string_output);
 
     // Free the JSON objects
     json_object_put(root);
 
-    char buffer[1024];
+    char buffer[2048];
     recv(websocket, buffer, sizeof(buffer), 0);
     printf("%s\n", buffer);
 
-    return strdup(json_string_output);  // The caller should free this string after use
+    return json_string_copy;  // The caller should free this string after use
 }
 
 void get_client_list(int socket) {

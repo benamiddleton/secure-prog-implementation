@@ -124,6 +124,7 @@ void process_client_list_request(int socket) {
 // Process incoming message from client
 void process_client_message(int client_sock, const char* message) {
     printf("TEST");
+    fflush(stdout);
 
     // Extract fields from the JSON message
     char* type = extract_field(extract_field(message, "data"), "type");
@@ -131,6 +132,8 @@ void process_client_message(int client_sock, const char* message) {
     char* signature = extract_field(message, "signature");
 
     printf("%s", message);
+    fflush(stdout);
+    printf("PROCESS_CLIENT_MESSAGE");
     fflush(stdout);
 
     // Find the client and verify message
@@ -148,11 +151,11 @@ void process_client_message(int client_sock, const char* message) {
         printf("POGGG");
     fflush(stdout);
         add_client(client_sock, extract_field(extract_field(message, "data"), "public_key"));
-    } else if (strcmp(type, "chat") == 0) {
-        handle_chat_message(client_sock, message);
+    //} else if (strcmp(type, "chat") == 0) {
+        //handle_chat_message(client_sock, message);
     } else if (strcmp(type, "public_chat") == 0) {
         printf("WOOOO");
-    fflush(stdout);
+        fflush(stdout);
         broadcast_public_message(client_sock, message);
     } else {
         printf("Unknown message type: %s\n", type);

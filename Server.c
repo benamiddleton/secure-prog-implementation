@@ -65,8 +65,12 @@ void *handle_incoming_connection(void *input_sock) {
     //printf("start of handle");
 
     // Receive messages from the client
-    while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
+    /*while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
+        printf("PLEASEWORK");
+        fflush(stdout);
         printf("Received message: %s\n", message);
+        printf("DIDITWORK");
+        fflush(stdout);
         // Process each message received from the client
         if (strcmp(message, FILE_TRANSFER_START) == 0) { // Check for file transfer start
             printf("File transfer initiated.\n");
@@ -92,7 +96,57 @@ void *handle_incoming_connection(void *input_sock) {
             fflush(stdout);
             process_client_message(sock, message);
         } else {printf("NOTWORKING");}
+    }*/
+
+   while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
+    printf("PLEASEWORK");
+    fflush(stdout);
+    printf("Received message: %s\n", message);
+    printf("DIDITWORK");
+    fflush(stdout);
+
+    // Check if the message has a "data" field
+    char *data_field = extract_field(message, "data");
+    char *type_field = NULL;
+
+    if (data_field != NULL) {
+        // The message has a "data" field, extract "type" from "data"
+        type_field = extract_field(data_field, "type");
+    } else {
+        // The message has no "data" field, extract "type" directly from the top level
+        type_field = extract_field(message, "type");
     }
+
+    // Now check the "type" field and process the message
+    if (type_field == NULL) {
+        printf("Error: 'type' field is NULL.\n");
+    } else if (strcmp(type_field, "signed_data") == 0) {
+        printf("SIGNED");
+        fflush(stdout);
+        process_client_message(sock, message);
+    } else if (strcmp(type_field, "client_list_request") == 0) {
+        printf("LISTREQUEST");
+        fflush(stdout);
+        process_client_list_request(sock);
+    } else if (strcmp(type_field, "public_chat") == 0) {
+        printf("PUBLIC");
+        fflush(stdout);
+        process_client_message(sock, message);
+    } else if (strcmp(type_field,  "hello") == 0) {
+        printf("HELLORECEIVED");
+        fflush(stdout);
+        //process_server_hello_received(sock, extract_field(data_field, "sender"));   // NOT SURE OF THIS LINE???
+        process_client_message(sock, message);
+    } else if (strcmp(type_field, "client_update_request") == 0) {
+        printf("UPDATEREQUEST");
+        fflush(stdout);
+        process_client_update_request(sock);
+    } else {
+        printf("Unknown message type: %s\n", type_field);
+    }
+}
+
+
     if (recv_result < 0) {
         perror("receive message from socket failed");
     }
