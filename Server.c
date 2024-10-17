@@ -101,7 +101,7 @@ void *handle_incoming_connection(void *input_sock) {
    while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
     printf("PLEASEWORK");
     fflush(stdout);
-    printf("Received message: %s\n", message);
+    //printf("Received message: %s\n", message);
     printf("DIDITWORK");
     fflush(stdout);
 

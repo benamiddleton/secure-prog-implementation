@@ -1,4 +1,38 @@
 #include "Server.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Function to extract the client's message from the JSON input
+char* extract_client_message(const char* json_message) {
+    // Locate the "message" field in the JSON
+    const char* message_start = strstr(json_message, "\"message\": \"");
+    if (message_start) {
+        message_start += strlen("\"message\": \""); // Move past the key
+
+        // Find the end of the message
+        const char* message_end = strstr(message_start, "\"");
+        if (message_end) {
+            size_t message_length = message_end - message_start;
+
+            // Allocate memory for the client message
+            char* client_message = (char*)malloc(message_length + 1);
+            if (client_message) {
+                strncpy(client_message, message_start, message_length);
+                client_message[message_length] = '\0'; // Null-terminate the string
+
+                // Trim any trailing newline or carriage return characters
+                char* ptr = client_message + message_length - 1;
+                while (ptr >= client_message && (*ptr == '\n' || *ptr == '\r' || *ptr == ' ')) {
+                    *ptr-- = '\0'; // Replace with null terminator
+                }
+                
+                return client_message;
+            }
+        }
+    }
+    return NULL; // Return NULL if the message is not found
+}
 
 // Add new client to the client list
 void add_client(int client_sock, const char* public_key) {
@@ -30,13 +64,37 @@ void send_message_to_client(int client_sock, const char* message) {
 
 // Broadcast public message to all clients
 void broadcast_public_message(int sender_sock, const char* message) {
+    char* client_message = extract_client_message(message);
     for (int i = 0; i < client_count; i++) {
         //if (clients[i].socket != sender_sock) {
-        printf("test - %s", message);
-        send_message_to_client(clients[i].socket, message);
+        printf("test - %s", client_message);
+        send_message_to_client(clients[i].socket, client_message);
         //}
     }
 }
+
+/*void broadcast_public_message(int sender_sock, const char* json_message) {
+    char* client_message = extract_client_message(json_message);
+    if (client_message) {
+        for (int i = 0; i < client_count; i++) {
+            if (clients[i].socket != sender_sock && clients[i].socket > 0) {
+                printf("Broadcasting to client %d: %s\n", clients[i].socket, client_message);
+
+                // Send only the client message to the client
+                if (send_message_to_client(clients[i].socket, client_message) < 0) {
+                    perror("Failed to send message");
+                    close(clients[i].socket);  // Close the socket if there's an error
+                    clients[i].socket = -1;    // Mark this socket as invalid
+                }
+            }
+        }
+    } else {
+        printf("Error: Could not extract client message from JSON.\n");
+    }
+
+    // Free the allocated memory for the client message
+    free(client_message); // Ensure to free the message
+}*/
 
 // Extract a field from a JSON message
 char* extract_field(const char* message, const char* field) {
@@ -131,7 +189,7 @@ void process_client_message(int client_sock, const char* message) {
     unsigned long counter = extract_counter(message);
     char* signature = extract_field(message, "signature");
 
-    printf("%s", message);
+    //printf("%s", message);
     fflush(stdout);
     printf("PROCESS_CLIENT_MESSAGE");
     fflush(stdout);
@@ -156,7 +214,9 @@ void process_client_message(int client_sock, const char* message) {
     } else if (strcmp(type, "public_chat") == 0) {
         printf("WOOOO");
         fflush(stdout);
-        broadcast_public_message(client_sock, message);
+        broadcast_public_message(client_sock, message); //THIS FUNCTION NEEDS FIXING
+        printf("WOOOO");
+        fflush(stdout);
     } else {
         printf("Unknown message type: %s\n", type);
     }

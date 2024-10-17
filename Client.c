@@ -315,21 +315,31 @@ int main() {
     printf("type 2 to send a public message to all.\n");
     printf("type 3 to send a file to the server.\n");
     scanf("%d", &choice);
+    while (getchar() != '\n'); // Clear any remaining characters in the input buffer
     if (choice == 1) {
         printf("What is your message? (MAX 256 characters)\n");
         message = malloc(sizeof(char) * 256);
-        scanf("%s", message);
+        fgets(message, sizeof(256), stdin);
+
+        // Remove newline character if it exists
+        message[strcspn(message, "\n")] = 0; // Strip the newline character
         // TO DO: add logic to receive recipient as user input and locate their public key
         send_chat_message(sock, message, public_keys[0]);
     } else if (choice == 2) {
         printf("What is your message? (MAX 256 characters)\n");
         message = malloc(sizeof(char) * 256);
-        scanf("%s", message);
+        fgets(message, 256, stdin);
+
+        // Remove newline character if it exists
+        message[strcspn(message, "\n")] = 0; // Strip the newline character
         // make sender fingerprint an actual fingerprint
         create_public_chat(sock, sender_fingerprint, message);
       } else if (choice == 3) {
         printf("Enter the path of the file to send:\n");
-        scanf("%s", file_path);
+        fgets(file_path, sizeof(256), stdin);
+
+        // Remove newline character from the file path if it exists
+        file_path[strcspn(file_path, "\n")] = 0; // Strip the newline character
         send_file(sock, file_path);  // Call the file transfer function
     }
     
