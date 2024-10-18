@@ -1,3 +1,12 @@
+/*
+CONTRIBUTORS:
+Group 37
+Alex Rowe
+Darcy Lisk
+Michael Marzinotto
+Ben Middleton
+*/
+
 #include "Server.h"
 
 

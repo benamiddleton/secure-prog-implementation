@@ -35,7 +35,7 @@ DEPENDENCIES:
 Ensure you have the following libraries installed:
 OpenSSL - sudo apt-get install openssl libssl-dev
 Json-c - sudo apt-get install libjson-c-dev
-
+libwebsockets - sudo apt install libwebsockets-dev
 
 
 COMPILATION COMMAND:

@@ -1,3 +1,12 @@
+/*
+CONTRIBUTORS:
+Group 37
+Alex Rowe
+Darcy Lisk
+Michael Marzinotto
+Ben Middleton
+*/
+
 #ifndef SERVER2CLIENT_H
 #define SERVER2CLIENT_H
 
