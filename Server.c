@@ -1,12 +1,13 @@
 #include "Server2Server.h"
 #include "Server2Client.h"
 #include "Server.h"
+#include <json-c/json.h> // Include the JSON-C header
 
 #define MAX_FILE_SIZE 1024 * 1024 * 10 // Example: max 100MB for a file
 #define CHUNK_SIZE 1024                 // Size of each chunk received
 #define FILE_TRANSFER_START "file_transfer_start"
 #define FILE_TRANSFER_END "file_transfer_end"
-#define FILE_NAME "received_file.bin"
+#define FILE_NAME "received_file"
 
 Client clients[MAX_CLIENTS];
 int client_count = 0;
@@ -24,13 +25,39 @@ char *get_host_addr(void) {
 	return address;
 }
 
-// Function to receive file from the client
 void receive_file(int sock) {
     char buffer[CHUNK_SIZE];
-    FILE *file = fopen(FILE_NAME, "wb"); // Open file to write binary data
+    char json_buffer[1024]; // Buffer to hold the JSON message
+    int json_length;
 
+   // Receive the JSON message for file metadata
+    json_length = recv(sock, json_buffer, sizeof(json_buffer) - 1, 0);
+    if (json_length < 0) {
+        perror("Failed to receive JSON");
+        return;
+    }
+    json_buffer[json_length] = '\0'; // Null-terminate the JSON string
+
+    printf("Received JSON: %s\n", json_buffer);
+    fflush(stdout);
+
+    // Parse the JSON message
+    json_object *file_message = json_tokener_parse(json_buffer);
+    if (file_message == NULL) {
+        perror("Failed to parse JSON");
+        return;
+    }
+
+    // Extract file name and size from JSON
+    const char *filename = json_object_get_string(json_object_object_get(file_message, "file_name"));
+    long file_size = json_object_get_int64(json_object_object_get(file_message, "file_size"));
+
+    printf("Receiving file: %s, Size: %ld bytes\n", filename, file_size);
+
+    FILE *file = fopen(filename, "wb"); // Use the received filename
     if (file == NULL) {
         perror("Failed to open file");
+        json_object_put(file_message); // Clean up JSON object
         return;
     }
 
@@ -38,13 +65,14 @@ void receive_file(int sock) {
     printf("Starting file reception...\n");
 
     // Receive file data in chunks
+    long total_bytes_received = 0;
     while ((bytes_received = recv(sock, buffer, CHUNK_SIZE, 0)) > 0) {
         fwrite(buffer, sizeof(char), bytes_received, file);
+        total_bytes_received += bytes_received;
 
-        // Check if the client sent end of file signal
-        if (strstr(buffer, FILE_TRANSFER_END) != NULL) {
-            printf("File transfer completed.\n");
-            break;
+        // Optional: Print progress
+        if (total_bytes_received % (CHUNK_SIZE * 10) == 0) {
+            printf("Received %ld bytes...\n", total_bytes_received);
         }
     }
 
@@ -53,14 +81,18 @@ void receive_file(int sock) {
     }
 
     fclose(file);
-    printf("File saved as: %s\n", FILE_NAME);
+    printf("File saved as: %s\n", filename);
+
+    // Clean up the JSON object
+    json_object_put(file_message);
 }
+
 
 // Function to handle individual connections
 void *handle_incoming_connection(void *input_sock) {
     int sock = *(int *)input_sock;
     int recv_result;
-    char message[10000];
+    char message[1000];
 
    while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
 
@@ -80,7 +112,7 @@ void *handle_incoming_connection(void *input_sock) {
 
     // Now check the "type" field and process the message
     if (type_field == NULL) {
-        printf("Error: 'type' field is NULL.\n");
+        //printf("Error: 'type' field is NULL.\n");
     } else if (strcmp(type_field, "signed_data") == 0) {
         //printf("SIGNED");
         //fflush(stdout);
@@ -102,6 +134,10 @@ void *handle_incoming_connection(void *input_sock) {
         printf("Client has requested an update request. \n");
         fflush(stdout);
         process_client_update_request(sock);
+    } else if (strcmp(type_field, "file_transfer") == 0) {
+            // Call receive_file to handle the file transfer
+            printf("Received file transfer request.\n");
+            receive_file(sock); // Ensure that receive_file is correctly defined
     } else {
         printf("Unknown message type: %s\n", type_field);
     }

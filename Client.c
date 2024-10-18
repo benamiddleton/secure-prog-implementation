@@ -21,6 +21,12 @@ int public_key_count = 0;
 int counter = 0;
 EVP_PKEY *private_key;
 
+// Function to get the file name from a full path
+const char* get_file_name(const char *file_path) {
+    const char *last_slash = strrchr(file_path, '/'); // Find the last '/' character
+    return last_slash ? last_slash + 1 : file_path; // Return the part after the last '/'
+}
+
 // // Base64 encoding function (pseudo-code, replace with a real implementation)
 // char* base64_encode(const unsigned char* buffer, size_t length) {
 //     // You'll need to use a real base64 encoding function, such as from OpenSSL or another library.
@@ -273,12 +279,31 @@ void send_file(int socket, const char *file_path) {
     }
     long file_size = file_stat.st_size;
 
-    // Send the file size to the server
-    if (send(socket, &file_size, sizeof(file_size), 0) < 0) {
-        perror("Failed to send file size");
-        fclose(file);
-        return;
-    }
+    const char *file_name = get_file_name(file_path); // Get just the file name
+
+    // Create a JSON object to send the file metadata
+    json_object *file_message = json_object_new_object();
+    json_object_object_add(file_message, "type", json_object_new_string("file_transfer"));
+    json_object_object_add(file_message, "file_name", json_object_new_string(file_name)); // Send the file name
+    json_object_object_add(file_message, "file_size", json_object_new_int64(file_size)); // Send the file size
+
+    // Convert JSON to string
+    const char *json_str = json_object_to_json_string(file_message);
+
+    printf("%s", json_str);
+    
+    // Send the JSON message to the server
+    send(socket, json_str, strlen(json_str), 0);
+
+    send(socket, "\n", 1, 0);  // This is to mark the end of the JSON string
+    
+    // Free the JSON object
+    json_object_put(file_message);
+
+    // Wait for a confirmation from the server (optional)
+    char response[256];
+    recv(socket, response, sizeof(response), 0);
+    printf("Server response: %s\n", response);
 
     // Send the file data in chunks
     char buffer[CHUNK_SIZE];
@@ -299,11 +324,6 @@ void send_file(int socket, const char *file_path) {
 
     // Close the file
     fclose(file);
-
-    // Optionally, wait for a confirmation response from the server
-    char response[256];
-    recv(socket, response, sizeof(response), 0);
-    printf("Server response: %s\n", response);
 }
 
 int main() {
@@ -341,15 +361,15 @@ int main() {
     // printf("%s\n", public_keys[0]);
     printf("Connected to Server\n");
     printf("Options:\n");
-    printf("type 1 to send a private message.\n");
-    printf("type 2 to send a public message to all.\n");
-    printf("type 3 to send a file to the server.\n");
+    printf("Type 1 to send a private message.\n");
+    printf("Type 2 to send a public message to all.\n");
+    printf("Type 3 to send a file to the server.\n");
     scanf("%d", &choice);
     while (getchar() != '\n'); // Clear any remaining characters in the input buffer
     if (choice == 1) {
         printf("What is your message? (MAX 256 characters)\n");
         message = malloc(sizeof(char) * 256);
-        fgets(message, sizeof(256), stdin);
+        fgets(message, 256, stdin);
 
         // Remove newline character if it exists
         message[strcspn(message, "\n")] = 0; // Strip the newline character
@@ -361,8 +381,8 @@ int main() {
         send_chat_message(sock, message, public_keys[0]); //change public_keys[0] to designated key
     } else if (choice == 2) {
         printf("What is your message? (MAX 256 characters)\n");
-        message = malloc(sizeof(char) * 256);
-        fgets(message, 256, stdin);
+        message = malloc(sizeof(char) * 2000);
+        fgets(message, 2000, stdin);
 
         // Remove newline character if it exists
         message[strcspn(message, "\n")] = 0; // Strip the newline character
@@ -371,7 +391,7 @@ int main() {
         create_public_chat(sock, sender_fingerprint, message);
       } else if (choice == 3) {
         printf("Enter the path of the file to send:\n");
-        fgets(file_path, sizeof(256), stdin);
+        fgets(file_path, 256, stdin);
 
         // Remove newline character from the file path if it exists
         file_path[strcspn(file_path, "\n")] = 0; // Strip the newline character

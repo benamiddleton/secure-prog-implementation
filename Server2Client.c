@@ -5,7 +5,7 @@
 
 #define MAX_LINE_LENGTH 512
 #define MAX_CLIENTS 100
-#define MAX_MESSAGE_SIZE 5000
+#define MAX_MESSAGE_SIZE 1000
 #define ERROR_RESPONSE_SIZE 5000 // Size for the error message buffer
 
 // Function to extract the client's message from the JSON input
@@ -263,7 +263,9 @@ void process_client_message(int client_sock, const char* message) {
 
 
 
-    // Route message based on type ###################   TAKE THIS OUT FOR BUFFER OVERFLOW     ###########
+    // Route message based on type
+    if (strcmp(type, "hello") == 0) {
+
     if (strlen(message) > MAX_MESSAGE_SIZE) {
         printf("Message received is too long: %lu bytes (max: %d)\n", strlen(message), MAX_MESSAGE_SIZE);
 
@@ -276,18 +278,42 @@ void process_client_message(int client_sock, const char* message) {
         
         return; // Early return to prevent further processing
     }
-     ///////////////////////////////////////////////////////////////////////////////////////
 
-    // Route message based on type
-    if (strcmp(type, "hello") == 0) {
-        //printf("POGGG");
-        //fflush(stdout);
         add_client(client_sock, extract_field(extract_field(message, "data"), "public_key"));
     } else if (strcmp(type, "chat") == 0) {
+
+
+    if (strlen(message) > MAX_MESSAGE_SIZE) {
+        printf("Message received is too long: %lu bytes (max: %d)\n", strlen(message), MAX_MESSAGE_SIZE);
+
+        // Create the error response message
+        char error_response[ERROR_RESPONSE_SIZE];
+        snprintf(error_response, ERROR_RESPONSE_SIZE, "{\"type\":\"error\",\"message\":\"Message too long\"}");
+
+        // Send the error response back to the client
+        send(client_sock, error_response, strlen(error_response), 0);
+        
+        return; // Early return to prevent further processing
+    }
+
         handle_chat_message(client_sock, message);
+
     } else if (strcmp(type, "public_chat") == 0) {
+
+    /*if (strlen(message) > MAX_MESSAGE_SIZE) { 
+        printf("Message received is too long: %lu bytes (max: %d)\n", strlen(message), MAX_MESSAGE_SIZE);
+
+        // Create the error response message
+        char error_response[ERROR_RESPONSE_SIZE];
+        snprintf(error_response, ERROR_RESPONSE_SIZE, "{\"type\":\"error\",\"message\":\"Message too long\"}");
+
+        // Send the error response back to the client
+        send(client_sock, error_response, strlen(error_response), 0);
+        
+        return; // Early return to prevent further processing
+    }*/
+
         broadcast_public_message(client_sock, message);
-        //printf("WOOOO");
         fflush(stdout);
     } else {
         printf("Unknown message type: %s\n", type);
