@@ -30,19 +30,19 @@ void receive_file(int sock, const char* message) {
     char json_buffer[1024]; // Buffer to hold the JSON message
     int json_length;
 
-   /*// Receive the JSON message for file metadata
-    json_length = recv(sock, json_buffer, sizeof(json_buffer) - 1, 0);
+   // Receive the JSON message for file metadata
+    /*json_length = recv(sock, json_buffer, sizeof(json_buffer) - 1, 0);
     if (json_length < 0) {
         perror("Failed to receive JSON");
         return;
     }
     json_buffer[json_length] = '\0'; // Null-terminate the JSON string*/
 
-    printf("Received JSON: %s\n", json_buffer);
+    //printf("Received JSON: %s\n", message);
     fflush(stdout);
 
     // Parse the JSON message
-    json_object *file_message = json_tokener_parse(json_buffer);
+    json_object *file_message = json_tokener_parse(message);
     if (file_message == NULL) {
         perror("Failed to parse JSON");
         return;
@@ -52,7 +52,23 @@ void receive_file(int sock, const char* message) {
     const char *filename = json_object_get_string(json_object_object_get(file_message, "file_name"));
     long file_size = json_object_get_int64(json_object_object_get(file_message, "file_size"));
 
-    printf("Receiving file: %s, Size: %ld bytes\n", filename, file_size);
+    // Possible Denial of Service attack
+    if (file_size >= 10000) {
+        printf("Congrats you caused a Denial of Service attack!\n");
+        fflush(stdout);
+
+        /*printf("File size is too large.\n");
+        fflush(stdout);
+        // Create an error message
+        const char *error_message = "Error: File size exceeds the allowed limit.";
+
+        // Send the error message to the client
+        send(sock, error_message, strlen(error_message), 0);
+
+        return;*/
+    }
+
+     printf("Receiving file: %s, Size: 2987 bytes\n", filename, file_size);
 
     FILE *file = fopen(filename, "wb"); // Use the received filename
     if (file == NULL) {
@@ -62,7 +78,7 @@ void receive_file(int sock, const char* message) {
     }
 
     ssize_t bytes_received;
-    printf("Starting file reception...\n");
+    //printf("Starting file reception...\n");
 
     // Receive file data in chunks
     long total_bytes_received = 0;

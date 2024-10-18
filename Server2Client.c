@@ -246,23 +246,6 @@ void process_client_message(int client_sock, const char* message) {
     unsigned long counter = extract_counter(message);
     char* signature = extract_field(message, "signature");
 
-    //printf("%s", message);
-    //fflush(stdout);
-    //printf("PROCESS_CLIENT_MESSAGE");
-    //fflush(stdout);
-
-    // Find the client and verify message
-    // Client* client = find_client(client_sock);
-    // if (client == NULL || counter <= client->last_counter /*|| !verify_message(message, signature, client->public_key)*/) {
-    //     printf("Invalid message received\n");
-    //     return;
-    // }
-
-    // Update client's counter
-    // client->last_counter = counter;
-
-
-
     // Route message based on type
     if (strcmp(type, "hello") == 0) {
 
@@ -299,6 +282,8 @@ void process_client_message(int client_sock, const char* message) {
         handle_chat_message(client_sock, message);
 
     } else if (strcmp(type, "public_chat") == 0) {
+
+        // Potential Buffer Overflow
 
     /*if (strlen(message) > MAX_MESSAGE_SIZE) { 
         printf("Message received is too long: %lu bytes (max: %d)\n", strlen(message), MAX_MESSAGE_SIZE);

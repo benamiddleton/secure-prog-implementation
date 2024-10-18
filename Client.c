@@ -290,16 +290,33 @@ void send_file(int socket, const char *file_path) {
     // Convert JSON to string
     const char *json_str = json_object_to_json_string(file_message);
 
-    printf("%s", json_str);
+    //printf("%s", json_str);
 
     
     // Send the JSON message to the server
     send(socket, json_str, strlen(json_str), 0);
 
     send(socket, "\n", 1, 0);  // This is to mark the end of the JSON string
+
+    //send(socket, file_size, 256, 0);
     
     // Free the JSON object
     json_object_put(file_message);
+
+    char buffer1[1024];  // Buffer to hold the received message
+int bytes_received;
+
+// Receive the message from the server
+bytes_received = recv(socket, buffer1, sizeof(buffer1) - 1, 0);
+if (bytes_received < 0) {
+    perror("Failed to receive message");
+} else {
+    // Null-terminate the received data to make it a proper string
+    buffer1[bytes_received] = '\0';
+
+    // Print the received message
+    printf("Server message: %s\n", buffer1);
+}
 
     // Wait for a confirmation from the server (optional)
     //char response[256];
