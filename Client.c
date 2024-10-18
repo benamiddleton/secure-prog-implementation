@@ -114,8 +114,8 @@ char* send_hello(int websocket) {
         perror("failed to send hello");
     }
 
-    printf("%s", message);
-    fflush(stdout);
+    //printf("%s", message);
+    //fflush(stdout);
 
     json_object_put(json_message);  // Free memory
 

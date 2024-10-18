@@ -238,8 +238,8 @@ void process_client_list_request(int socket) {
 
 // Process incoming message from client
 void process_client_message(int client_sock, const char* message) {
-    printf("TEST");
-    fflush(stdout);
+    //printf("TEST");
+    //fflush(stdout);
 
     // Extract fields from the JSON message
     char* type = extract_field(extract_field(message, "data"), "type");

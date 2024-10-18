@@ -63,11 +63,8 @@ void *handle_incoming_connection(void *input_sock) {
     char message[10000];
 
    while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
-    printf("PLEASEWORK");
-    fflush(stdout);
+
     //printf("Received message: %s\n", message);
-    printf("DIDITWORK");
-    fflush(stdout);
 
     // Check if the message has a "data" field
     char *data_field = extract_field(message, "data");
@@ -136,7 +133,7 @@ void manage_incoming_connections(int server_sock) {
         }        
 
         // Create a thread to handle the new client
-        printf("Client connected");
+        printf("Client connected successfully\n");
         fflush(stdout);
         pthread_t conn_thread;
         *sock = new_conn_sock;
@@ -152,17 +149,15 @@ void manage_incoming_connections(int server_sock) {
 }
 
 int main() {
+
     initialize_client_count();
-    printf("1 socket");
-    fflush(stdout);
+
     int sock; // Server socket descriptor. Moved client socket to Client struct
     struct sockaddr_in server_addr; // Server address structure
-    printf("2 socket");
-    fflush(stdout);
 
     // Create the socket (IPv4, TCP)
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    printf("after socket");
+    printf("Socket successfully created\n");
     fflush(stdout);
 
     // Set up the server address (IP and port)
@@ -172,12 +167,12 @@ int main() {
 
     // Bind the socket to the specified port and IP
     bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    printf("after bind");
+    printf("Socket successfully binded to port number: %d\n", SERVER_PORT);
     fflush(stdout);
 
     //connect_to_neighbour(sock);
-    printf("after neighbour");
-    fflush(stdout);
+    //printf("after neighbour");
+    //fflush(stdout);
 
     manage_incoming_connections(sock);
     printf("after manage");
