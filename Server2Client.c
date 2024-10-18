@@ -5,8 +5,8 @@
 
 #define MAX_LINE_LENGTH 512
 #define MAX_CLIENTS 100
-#define MAX_MESSAGE_SIZE 257
-#define ERROR_RESPONSE_SIZE 257 // Size for the error message buffer
+#define MAX_MESSAGE_SIZE 5000
+#define ERROR_RESPONSE_SIZE 5000 // Size for the error message buffer
 
 // Function to extract the client's message from the JSON input
 char* extract_client_message(const char* json_message) {
@@ -124,8 +124,8 @@ void broadcast_public_message(int sender_sock, const char* message) {
     char* client_message = extract_client_message(message);
     for (int i = 0; i < client_count; i++) {
         //if (clients[i].socket != sender_sock) {
-        printf("test - %s", client_message);
-        send_message_to_client(clients[i].socket, client_message);
+        printf("Client message: %s", client_message);
+        send_message_to_client(sender_sock, message); // change to clients[i].socket
         //}
     }
 }
@@ -263,7 +263,7 @@ void process_client_message(int client_sock, const char* message) {
 
 
 
-    // Route message based on type (###################TAKE THIS OUT FOR BUFFER OVERFLOW)###########
+    // Route message based on type ###################   TAKE THIS OUT FOR BUFFER OVERFLOW     ###########
     if (strlen(message) > MAX_MESSAGE_SIZE) {
         printf("Message received is too long: %lu bytes (max: %d)\n", strlen(message), MAX_MESSAGE_SIZE);
 
@@ -276,7 +276,7 @@ void process_client_message(int client_sock, const char* message) {
         
         return; // Early return to prevent further processing
     }
-
+     ///////////////////////////////////////////////////////////////////////////////////////
 
     // Route message based on type
     if (strcmp(type, "hello") == 0) {
@@ -292,8 +292,15 @@ void process_client_message(int client_sock, const char* message) {
     } else {
         printf("Unknown message type: %s\n", type);
         fflush(stdout);
-    }
 
+         // Create the unknown message type response
+        char unknown_response[ERROR_RESPONSE_SIZE];
+        snprintf(unknown_response, ERROR_RESPONSE_SIZE, "{\"type\":\"error\",\"message\":\"Unknown message type\"}");
+
+        // Send the unknown message type response back to the client
+        send(client_sock, unknown_response, strlen(unknown_response), 0);
+    }
+    
     free(type);
     free(signature);
 }

@@ -57,6 +57,37 @@ EVP_PKEY *private_key;
 //     return encoded_signature;
 // }
 
+// Function to extract the client's message from the JSON input
+char* extract_client_message(const char* json_message) {
+    // Locate the "message" field in the JSON
+    const char* message_start = strstr(json_message, "\"message\": \"");
+    if (message_start) {
+        message_start += strlen("\"message\": \""); // Move past the key
+
+        // Find the end of the message
+        const char* message_end = strstr(message_start, "\"");
+        if (message_end) {
+            size_t message_length = message_end - message_start;
+
+            // Allocate memory for the client message
+            char* client_message = (char*)malloc(message_length + 1);
+            if (client_message) {
+                strncpy(client_message, message_start, message_length);
+                client_message[message_length] = '\0'; // Null-terminate the string
+
+                // Trim any trailing newline or carriage return characters
+                char* ptr = client_message + message_length - 1;
+                while (ptr >= client_message && (*ptr == '\n' || *ptr == '\r' || *ptr == ' ')) {
+                    *ptr-- = '\0'; // Replace with null terminator
+                }
+                
+                return client_message;
+            }
+        }
+    }
+    return NULL; // Return NULL if the message is not found
+}
+
 char* send_hello(int websocket) {
     // Create a new JSON object using json-c
     json_object *json_message = json_object_new_object();
@@ -170,9 +201,9 @@ char* create_public_chat(int websocket, const char* sender_fingerprint, const ch
     // Free the JSON objects
     json_object_put(root);
 
-    char buffer[2048];
-    recv(websocket, buffer, sizeof(buffer), 0);
-    printf("%s\n", buffer);
+    //char buffer[2048];
+    //recv(websocket, buffer, sizeof(buffer), 0);
+    //printf("%s\n", buffer);
 
     return json_string_copy;  // The caller should free this string after use
 }
@@ -209,7 +240,7 @@ void get_client_list(int socket) {
 }
 
 void receive_message(int socket) {
-    char buffer[1024];  // Buffer to store received data
+    char buffer[5000];  // Buffer to store received data
     memset(buffer, 0, sizeof(buffer));  // Clear buffer
 
     ssize_t bytes_received = recv(socket, buffer, sizeof(buffer) - 1, 0);
@@ -219,7 +250,8 @@ void receive_message(int socket) {
         printf("Connection closed by the server.\n");
     } else {
         buffer[bytes_received] = '\0';  // Null-terminate the received data
-        printf("Received message from server: %s\n", buffer);
+        char* client_message = extract_client_message(buffer);
+        printf("Received message from server: %s\n", client_message);
     }
 }
 
@@ -346,7 +378,6 @@ int main() {
         send_file(sock, file_path);  // Call the file transfer function
     }
     
-
     receive_message(sock);
 
     // Close the socket
