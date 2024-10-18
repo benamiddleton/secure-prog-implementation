@@ -158,11 +158,9 @@ char* create_public_chat(int websocket, const char* sender_fingerprint, const ch
     // Convert JSON object to a string
     const char *json_string_output = json_object_to_json_string(root);
     char *json_string_copy = strdup(json_string_output);
-    printf("HERE");
-    printf("%s", json_string_output);
-    fflush(stdout);
-
-    //send(websocket, strdup(json_string_output), strlen(json_string_output), 0);
+    //printf("HERE");
+    //printf("%s", json_string_output);
+    //fflush(stdout);
 
      if (send(websocket, json_string_copy, strlen(json_string_copy), 0) < 0) {
         perror("Failed to send public chat message");
@@ -323,8 +321,12 @@ int main() {
 
         // Remove newline character if it exists
         message[strcspn(message, "\n")] = 0; // Strip the newline character
+
         // TO DO: add logic to receive recipient as user input and locate their public key
-        send_chat_message(sock, message, public_keys[0]);
+
+
+
+        send_chat_message(sock, message, public_keys[0]); //change public_keys[0] to designated key
     } else if (choice == 2) {
         printf("What is your message? (MAX 256 characters)\n");
         message = malloc(sizeof(char) * 256);
@@ -332,6 +334,7 @@ int main() {
 
         // Remove newline character if it exists
         message[strcspn(message, "\n")] = 0; // Strip the newline character
+
         // make sender fingerprint an actual fingerprint
         create_public_chat(sock, sender_fingerprint, message);
       } else if (choice == 3) {

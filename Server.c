@@ -62,42 +62,6 @@ void *handle_incoming_connection(void *input_sock) {
     int recv_result;
     char message[10000];
 
-    //printf("start of handle");
-
-    // Receive messages from the client
-    /*while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
-        printf("PLEASEWORK");
-        fflush(stdout);
-        printf("Received message: %s\n", message);
-        printf("DIDITWORK");
-        fflush(stdout);
-        // Process each message received from the client
-        if (strcmp(message, FILE_TRANSFER_START) == 0) { // Check for file transfer start
-            printf("File transfer initiated.\n");
-            receive_file(sock); // Call function to receive file
-        } else if (strcmp(extract_field(message, "type"), "signed_data") == 0) {
-            printf("SIGNED");
-            fflush(stdout);
-            process_client_message(sock, message);
-        } else if (strcmp(extract_field(message, "type"), "client_list_request") == 0)  {
-            printf("LISTREQUEST");
-            fflush(stdout);
-            process_client_list_request(sock);
-        } else if (strcmp(extract_field(extract_field(message, "data"), "type"), "server_hello") == 0)  {
-            printf("HELLORECEIVED");
-            fflush(stdout);
-            process_server_hello_received(sock, extract_field(extract_field(message, "data"),"sender"));
-        } else if (strcmp(extract_field(message, "type"), "client_update_request") == 0) {
-            printf("UPDATEREQUEST");
-            fflush(stdout);
-            process_client_update_request(sock);
-        } else if (strcmp(extract_field(extract_field(message, "data"), "type"), "public_chat") == 0) {
-            printf("PUBLIC");
-            fflush(stdout);
-            process_client_message(sock, message);
-        } else {printf("NOTWORKING");}
-    }*/
-
    while ((recv_result = recv(sock, message, sizeof(message), 0)) > 0) {
     printf("PLEASEWORK");
     fflush(stdout);
@@ -121,24 +85,24 @@ void *handle_incoming_connection(void *input_sock) {
     if (type_field == NULL) {
         printf("Error: 'type' field is NULL.\n");
     } else if (strcmp(type_field, "signed_data") == 0) {
-        printf("SIGNED");
-        fflush(stdout);
+        //printf("SIGNED");
+        //fflush(stdout);
         process_client_message(sock, message);
     } else if (strcmp(type_field, "client_list_request") == 0) {
-        printf("LISTREQUEST");
-        fflush(stdout);
+        //printf("LISTREQUEST");
+        //fflush(stdout);
         process_client_list_request(sock);
     } else if (strcmp(type_field, "public_chat") == 0) {
-        printf("PUBLIC");
-        fflush(stdout);
+        //printf("PUBLIC");
+        //fflush(stdout);
         process_client_message(sock, message);
     } else if (strcmp(type_field,  "hello") == 0) {
-        printf("HELLORECEIVED");
-        fflush(stdout);
+        //printf("HELLORECEIVED");
+        //fflush(stdout);
         //process_server_hello_received(sock, extract_field(data_field, "sender"));   // NOT SURE OF THIS LINE???
         process_client_message(sock, message);
     } else if (strcmp(type_field, "client_update_request") == 0) {
-        printf("UPDATEREQUEST");
+        printf("Client has requested an update request. \n");
         fflush(stdout);
         process_client_update_request(sock);
     } else {
@@ -188,6 +152,7 @@ void manage_incoming_connections(int server_sock) {
 }
 
 int main() {
+    initialize_client_count();
     printf("1 socket");
     fflush(stdout);
     int sock; // Server socket descriptor. Moved client socket to Client struct
@@ -210,7 +175,9 @@ int main() {
     printf("after bind");
     fflush(stdout);
 
-    connect_to_neighbour(sock);
+    //connect_to_neighbour(sock);
+    printf("after neighbour");
+    fflush(stdout);
 
     manage_incoming_connections(sock);
     printf("after manage");

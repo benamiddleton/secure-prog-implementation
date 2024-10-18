@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_LINE_LENGTH 512
+#define MAX_CLIENTS 100
+#define MAX_MESSAGE_SIZE 257
+#define ERROR_RESPONSE_SIZE 257 // Size for the error message buffer
+
 // Function to extract the client's message from the JSON input
 char* extract_client_message(const char* json_message) {
     // Locate the "message" field in the JSON
@@ -34,7 +39,7 @@ char* extract_client_message(const char* json_message) {
     return NULL; // Return NULL if the message is not found
 }
 
-// Add new client to the client list
+/*// Add new client to the client list
 void add_client(int client_sock, const char* public_key) {
     if (client_count < MAX_CLIENTS) {
         clients[client_count].socket = client_sock;
@@ -45,7 +50,59 @@ void add_client(int client_sock, const char* public_key) {
     } else {
         printf("Max client limit reached\n");
     }
+}*/
+
+// Initialize client_count by reading from the server_list.txt file
+void initialize_client_count() {
+    FILE *file = fopen("server_list.txt", "r");
+    if (!file) {
+        printf("Could not open server_list.txt. Starting with 0 clients.\n");
+        client_count = 0;
+        return;
+    }
+    
+    client_count = 0;
+    char line[MAX_LINE_LENGTH];
+    while (fgets(line, sizeof(line), file)) {
+        // Skip empty or malformed lines (you could add further validation here)
+        if (strlen(line) > 1) {
+            client_count++;
+        }
+    }
+    
+    fclose(file);
+    printf("Initialized with %d clients from file.\n", client_count);
 }
+
+void add_client(int client_sock, const char* public_key) {
+    if (client_count < MAX_CLIENTS) {
+        
+        // Hash the public key
+        unsigned char hash[SHA256_DIGEST_LENGTH];
+        SHA256((unsigned char*)public_key, strlen(public_key), hash);
+        
+        // Convert the hash to a readable hex format (or Base64)
+        char hash_string[SHA256_DIGEST_LENGTH * 2 + 1];
+        for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+            sprintf(&hash_string[i * 2], "%02x", hash[i]);
+        }
+
+        //clients[client_count].last_counter = 0;  // Start counter from 0
+        client_count++;
+        send(client_sock, "Hello received!", 15, 0);
+        
+        // Optionally, store the hash and other details in server_list.txt
+        FILE *file = fopen("server_list.txt", "a");
+        if (file) {
+            fprintf(file, "client%d | %s | %d\n", client_count, hash_string, client_sock);
+            fclose(file);
+        }
+    } else {
+        printf("Max client limit reached\n");
+    }
+}
+
+
 
 // Find a client by socket
 Client* find_client(int client_sock) {
@@ -190,9 +247,9 @@ void process_client_message(int client_sock, const char* message) {
     char* signature = extract_field(message, "signature");
 
     //printf("%s", message);
-    fflush(stdout);
-    printf("PROCESS_CLIENT_MESSAGE");
-    fflush(stdout);
+    //fflush(stdout);
+    //printf("PROCESS_CLIENT_MESSAGE");
+    //fflush(stdout);
 
     // Find the client and verify message
     // Client* client = find_client(client_sock);
@@ -204,21 +261,37 @@ void process_client_message(int client_sock, const char* message) {
     // Update client's counter
     // client->last_counter = counter;
 
+
+
+    // Route message based on type (###################TAKE THIS OUT FOR BUFFER OVERFLOW)###########
+    if (strlen(message) > MAX_MESSAGE_SIZE) {
+        printf("Message received is too long: %lu bytes (max: %d)\n", strlen(message), MAX_MESSAGE_SIZE);
+
+        // Create the error response message
+        char error_response[ERROR_RESPONSE_SIZE];
+        snprintf(error_response, ERROR_RESPONSE_SIZE, "{\"type\":\"error\",\"message\":\"Message too long\"}");
+
+        // Send the error response back to the client
+        send(client_sock, error_response, strlen(error_response), 0);
+        
+        return; // Early return to prevent further processing
+    }
+
+
     // Route message based on type
     if (strcmp(type, "hello") == 0) {
-        printf("POGGG");
-    fflush(stdout);
+        //printf("POGGG");
+        //fflush(stdout);
         add_client(client_sock, extract_field(extract_field(message, "data"), "public_key"));
-    //} else if (strcmp(type, "chat") == 0) {
-        //handle_chat_message(client_sock, message);
+    } else if (strcmp(type, "chat") == 0) {
+        handle_chat_message(client_sock, message);
     } else if (strcmp(type, "public_chat") == 0) {
-        printf("WOOOO");
-        fflush(stdout);
-        broadcast_public_message(client_sock, message); //THIS FUNCTION NEEDS FIXING
-        printf("WOOOO");
+        broadcast_public_message(client_sock, message);
+        //printf("WOOOO");
         fflush(stdout);
     } else {
         printf("Unknown message type: %s\n", type);
+        fflush(stdout);
     }
 
     free(type);
@@ -233,7 +306,8 @@ void handle_chat_message(int sender_sock, const char* message) {
     json_object_object_get_ex(data_obj, "destination_servers", &dest_servers);
     json_object *dest = json_object_array_get_idx(dest_servers, 0);
     char *destination_server = json_object_get_string(dest);
-    
+
+    char* client_message = extract_client_message(message);
     
     if (strcmp(destination_server, get_local_server_address()) == 0) {
         // Route message to the appropriate client on this server
