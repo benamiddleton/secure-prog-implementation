@@ -9,7 +9,6 @@ Ben Middleton
 
 #include "Server.h"
 
-
 Server *add_server(int server_sock, const char* address, int port) {
     if (server_count < MAX_SERVERS) {
         servers[server_count].socket = server_sock;

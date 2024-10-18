@@ -36,42 +36,6 @@ const char* get_file_name(const char *file_path) {
     return last_slash ? last_slash + 1 : file_path; // Return the part after the last '/'
 }
 
-// // Base64 encoding function (pseudo-code, replace with a real implementation)
-// char* base64_encode(const unsigned char* buffer, size_t length) {
-//     // You'll need to use a real base64 encoding function, such as from OpenSSL or another library.
-//     // This is just a placeholder.
-//     return NULL;
-// }
-
-// char* sign_message(const char *message, int counter) {
-//     // Combine message and counter into a single string
-//     char full_message[512];
-//     sprintf(full_message, "%s%d", message, counter);
-    
-//     // Hash the message using SHA-256
-//     unsigned char hash[SHA256_DIGEST_LENGTH];
-//     SHA256((unsigned char*)full_message, strlen(full_message), hash);
-
-//     // Load the private key
-//     RSA *rsa = RSA_new();
-//     FILE *fp = fopen("private.pem", "r");
-//     PEM_read_RSAPrivateKey(fp, &rsa, NULL, NULL);
-//     fclose(fp);
-    
-//     // Sign the hash
-//     unsigned char *signature = malloc(RSA_size(rsa));
-//     unsigned int signature_len;
-//     RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, &signature_len, rsa);
-
-//     // Base64 encode the signature (replace this with a real base64 encoding implementation)
-//     char *encoded_signature = base64_encode(signature, signature_len);
-    
-//     RSA_free(rsa);
-//     free(signature);
-    
-//     return encoded_signature;
-// }
-
 // Function to extract the client's message from the JSON input
 char* extract_client_message(const char* json_message) {
     // Locate the "message" field in the JSON
@@ -129,8 +93,6 @@ char* send_hello(int websocket) {
         perror("failed to send hello");
     }
 
-    //printf("%s", message);
-    //fflush(stdout);
 
     json_object_put(json_message);  // Free memory
 
@@ -204,21 +166,13 @@ char* create_public_chat(int websocket, const char* sender_fingerprint, const ch
     // Convert JSON object to a string
     const char *json_string_output = json_object_to_json_string(root);
     char *json_string_copy = strdup(json_string_output);
-    //printf("HERE");
-    //printf("%s", json_string_output);
-    //fflush(stdout);
 
-     if (send(websocket, json_string_copy, strlen(json_string_copy), 0) < 0) {
+    if (send(websocket, json_string_copy, strlen(json_string_copy), 0) < 0) {
         perror("Failed to send public chat message");
     }
-    //handle_chat_message(websocket, *json_string_output);
 
     // Free the JSON objects
     json_object_put(root);
-
-    //char buffer[2048];
-    //recv(websocket, buffer, sizeof(buffer), 0);
-    //printf("%s\n", buffer);
 
     return json_string_copy;  // The caller should free this string after use
 }
@@ -251,6 +205,7 @@ void get_client_list(int socket) {
             public_key_count++;
         }
     }
+    // not working as of submission, commented out
     // return list;
 }
 
@@ -298,16 +253,11 @@ void send_file(int socket, const char *file_path) {
 
     // Convert JSON to string
     const char *json_str = json_object_to_json_string(file_message);
-
-    //printf("%s", json_str);
-
     
     // Send the JSON message to the server
     send(socket, json_str, strlen(json_str), 0);
 
     send(socket, "\n", 1, 0);  // This is to mark the end of the JSON string
-
-    //send(socket, file_size, 256, 0);
     
     // Free the JSON object
     json_object_put(file_message);
@@ -327,10 +277,6 @@ if (bytes_received < 0) {
     printf("Server message: %s\n", buffer1);
 }
 
-    // Wait for a confirmation from the server (optional)
-    //char response[256];
-    //recv(socket, response, sizeof(response), 0);
-    //printf("Server response: %s\n", response);
 
     // Send the file data in chunks
     char buffer[CHUNK_SIZE];
@@ -372,8 +318,6 @@ int main() {
     server_addr.sin_port = htons(SERVER_PORT);  // Convert port to network byte order
     server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");  // Server address (localhost)
 
-    // Connect to the server
-    //connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
     // Send the message to the server
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection to server failed");
@@ -383,9 +327,7 @@ int main() {
     public_key = send_hello(sock);
     // need to make this 'Base64Encode(SHA-256(exported RSA public key))'
     sender_fingerprint = public_key;
-    // printf("hello");
     get_client_list(sock);
-    // printf("%s\n", public_keys[0]);
     printf("Connected to Server\n");
     printf("Options:\n");
     printf("Type 1 to send a private message.\n");
@@ -400,9 +342,6 @@ int main() {
 
         // Remove newline character if it exists
         message[strcspn(message, "\n")] = 0; // Strip the newline character
-
-        // TO DO: add logic to receive recipient as user input and locate their public key
-
 
 
         send_chat_message(sock, message, public_keys[0]); //change public_keys[0] to designated key

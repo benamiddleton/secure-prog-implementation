@@ -39,17 +39,6 @@ void receive_file(int sock, const char* message) {
     char json_buffer[1024]; // Buffer to hold the JSON message
     int json_length;
 
-   // Receive the JSON message for file metadata
-    /*json_length = recv(sock, json_buffer, sizeof(json_buffer) - 1, 0);
-    if (json_length < 0) {
-        perror("Failed to receive JSON");
-        return;
-    }
-    json_buffer[json_length] = '\0'; // Null-terminate the JSON string*/
-
-    //printf("Received JSON: %s\n", message);
-    fflush(stdout);
-
     // Parse the JSON message
     json_object *file_message = json_tokener_parse(message);
     if (file_message == NULL) {
@@ -61,12 +50,9 @@ void receive_file(int sock, const char* message) {
     const char *filename = json_object_get_string(json_object_object_get(file_message, "file_name"));
     long file_size = json_object_get_int64(json_object_object_get(file_message, "file_size"));
 
-    // Possible Denial of Service attack
+    // Possible Denial of Service attack - Secure code
     if (file_size >= 10000) {
-        printf("Congrats you caused a Denial of Service attack!\n");
-        fflush(stdout);
-
-        /*printf("File size is too large.\n");
+        printf("File size is too large.\n");
         fflush(stdout);
         // Create an error message
         const char *error_message = "Error: File size exceeds the allowed limit.";
@@ -153,7 +139,6 @@ void *handle_incoming_connection(void *input_sock) {
     } else if (strcmp(type_field,  "hello") == 0) {
         //printf("HELLORECEIVED");
         //fflush(stdout);
-        //process_server_hello_received(sock, extract_field(data_field, "sender"));   // NOT SURE OF THIS LINE???
         process_client_message(sock, message);
     } else if (strcmp(type_field, "client_update_request") == 0) {
         printf("Client has requested an update request. \n");
