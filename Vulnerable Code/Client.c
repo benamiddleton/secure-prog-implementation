@@ -36,42 +36,6 @@ const char* get_file_name(const char *file_path) {
     return last_slash ? last_slash + 1 : file_path; // Return the part after the last '/'
 }
 
-// // Base64 encoding function (pseudo-code, replace with a real implementation)
-// char* base64_encode(const unsigned char* buffer, size_t length) {
-//     // You'll need to use a real base64 encoding function, such as from OpenSSL or another library.
-//     // This is just a placeholder.
-//     return NULL;
-// }
-
-// char* sign_message(const char *message, int counter) {
-//     // Combine message and counter into a single string
-//     char full_message[512];
-//     sprintf(full_message, "%s%d", message, counter);
-    
-//     // Hash the message using SHA-256
-//     unsigned char hash[SHA256_DIGEST_LENGTH];
-//     SHA256((unsigned char*)full_message, strlen(full_message), hash);
-
-//     // Load the private key
-//     RSA *rsa = RSA_new();
-//     FILE *fp = fopen("private.pem", "r");
-//     PEM_read_RSAPrivateKey(fp, &rsa, NULL, NULL);
-//     fclose(fp);
-    
-//     // Sign the hash
-//     unsigned char *signature = malloc(RSA_size(rsa));
-//     unsigned int signature_len;
-//     RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, &signature_len, rsa);
-
-//     // Base64 encode the signature (replace this with a real base64 encoding implementation)
-//     char *encoded_signature = base64_encode(signature, signature_len);
-    
-//     RSA_free(rsa);
-//     free(signature);
-    
-//     return encoded_signature;
-// }
-
 // Function to extract the client's message from the JSON input
 char* extract_client_message(const char* json_message) {
     // Locate the "message" field in the JSON
@@ -216,10 +180,6 @@ char* create_public_chat(int websocket, const char* sender_fingerprint, const ch
     // Free the JSON objects
     json_object_put(root);
 
-    //char buffer[2048];
-    //recv(websocket, buffer, sizeof(buffer), 0);
-    //printf("%s\n", buffer);
-
     return json_string_copy;  // The caller should free this string after use
 }
 
@@ -306,8 +266,6 @@ void send_file(int socket, const char *file_path) {
     send(socket, json_str, strlen(json_str), 0);
 
     send(socket, "\n", 1, 0);  // This is to mark the end of the JSON string
-
-    //send(socket, file_size, 256, 0);
     
     // Free the JSON object
     json_object_put(file_message);

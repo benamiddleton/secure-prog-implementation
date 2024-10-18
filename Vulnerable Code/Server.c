@@ -39,14 +39,6 @@ void receive_file(int sock, const char* message) {
     char json_buffer[1024]; // Buffer to hold the JSON message
     int json_length;
 
-   // Receive the JSON message for file metadata
-    /*json_length = recv(sock, json_buffer, sizeof(json_buffer) - 1, 0);
-    if (json_length < 0) {
-        perror("Failed to receive JSON");
-        return;
-    }
-    json_buffer[json_length] = '\0'; // Null-terminate the JSON string*/
-
     //printf("Received JSON: %s\n", message);
     fflush(stdout);
 
@@ -112,7 +104,6 @@ void receive_file(int sock, const char* message) {
     json_object_put(file_message);
 }
 
-
 // Function to handle individual connections
 void *handle_incoming_connection(void *input_sock) {
     int sock = *(int *)input_sock;
@@ -153,7 +144,6 @@ void *handle_incoming_connection(void *input_sock) {
     } else if (strcmp(type_field,  "hello") == 0) {
         //printf("HELLORECEIVED");
         //fflush(stdout);
-        //process_server_hello_received(sock, extract_field(data_field, "sender"));   // NOT SURE OF THIS LINE???
         process_client_message(sock, message);
     } else if (strcmp(type_field, "client_update_request") == 0) {
         printf("Client has requested an update request. \n");
@@ -167,7 +157,6 @@ void *handle_incoming_connection(void *input_sock) {
         printf("Unknown message type: %s\n", type_field);
     }
 }
-
 
     if (recv_result < 0) {
         perror("receive message from socket failed");

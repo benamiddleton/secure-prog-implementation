@@ -48,19 +48,6 @@ char* extract_client_message(const char* json_message) {
     return NULL; // Return NULL if the message is not found
 }
 
-/*// Add new client to the client list
-void add_client(int client_sock, const char* public_key) {
-    if (client_count < MAX_CLIENTS) {
-        clients[client_count].socket = client_sock;
-        strncpy(clients[client_count].public_key, public_key, sizeof(clients[client_count].public_key));
-        clients[client_count].last_counter = 0;  // Start counter from 0
-        client_count++;
-        send(client_sock, "Hello received!", 15, 0);
-    } else {
-        printf("Max client limit reached\n");
-    }
-}*/
-
 // Initialize client_count by reading from the server_list.txt file
 void initialize_client_count() {
     FILE *file = fopen("server_list.txt", "r");
@@ -111,8 +98,6 @@ void add_client(int client_sock, const char* public_key) {
     }
 }
 
-
-
 // Find a client by socket
 Client* find_client(int client_sock) {
     for (int i = 0; i < client_count; i++) {
@@ -138,29 +123,6 @@ void broadcast_public_message(int sender_sock, const char* message) {
         //}
     }
 }
-
-/*void broadcast_public_message(int sender_sock, const char* json_message) {
-    char* client_message = extract_client_message(json_message);
-    if (client_message) {
-        for (int i = 0; i < client_count; i++) {
-            if (clients[i].socket != sender_sock && clients[i].socket > 0) {
-                printf("Broadcasting to client %d: %s\n", clients[i].socket, client_message);
-
-                // Send only the client message to the client
-                if (send_message_to_client(clients[i].socket, client_message) < 0) {
-                    perror("Failed to send message");
-                    close(clients[i].socket);  // Close the socket if there's an error
-                    clients[i].socket = -1;    // Mark this socket as invalid
-                }
-            }
-        }
-    } else {
-        printf("Error: Could not extract client message from JSON.\n");
-    }
-
-    // Free the allocated memory for the client message
-    free(client_message); // Ensure to free the message
-}*/
 
 // Extract a field from a JSON message
 char* extract_field(const char* message, const char* field) {
