@@ -291,6 +291,7 @@ void send_file(int socket, const char *file_path) {
     const char *json_str = json_object_to_json_string(file_message);
 
     printf("%s", json_str);
+
     
     // Send the JSON message to the server
     send(socket, json_str, strlen(json_str), 0);
@@ -301,9 +302,9 @@ void send_file(int socket, const char *file_path) {
     json_object_put(file_message);
 
     // Wait for a confirmation from the server (optional)
-    char response[256];
-    recv(socket, response, sizeof(response), 0);
-    printf("Server response: %s\n", response);
+    //char response[256];
+    //recv(socket, response, sizeof(response), 0);
+    //printf("Server response: %s\n", response);
 
     // Send the file data in chunks
     char buffer[CHUNK_SIZE];

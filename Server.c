@@ -25,18 +25,18 @@ char *get_host_addr(void) {
 	return address;
 }
 
-void receive_file(int sock) {
+void receive_file(int sock, const char* message) {
     char buffer[CHUNK_SIZE];
     char json_buffer[1024]; // Buffer to hold the JSON message
     int json_length;
 
-   // Receive the JSON message for file metadata
+   /*// Receive the JSON message for file metadata
     json_length = recv(sock, json_buffer, sizeof(json_buffer) - 1, 0);
     if (json_length < 0) {
         perror("Failed to receive JSON");
         return;
     }
-    json_buffer[json_length] = '\0'; // Null-terminate the JSON string
+    json_buffer[json_length] = '\0'; // Null-terminate the JSON string*/
 
     printf("Received JSON: %s\n", json_buffer);
     fflush(stdout);
@@ -112,7 +112,7 @@ void *handle_incoming_connection(void *input_sock) {
 
     // Now check the "type" field and process the message
     if (type_field == NULL) {
-        //printf("Error: 'type' field is NULL.\n");
+        printf("Error: 'type' field is NULL.\n");
     } else if (strcmp(type_field, "signed_data") == 0) {
         //printf("SIGNED");
         //fflush(stdout);
@@ -137,7 +137,7 @@ void *handle_incoming_connection(void *input_sock) {
     } else if (strcmp(type_field, "file_transfer") == 0) {
             // Call receive_file to handle the file transfer
             printf("Received file transfer request.\n");
-            receive_file(sock); // Ensure that receive_file is correctly defined
+            receive_file(sock, message); // Ensure that receive_file is correctly defined
     } else {
         printf("Unknown message type: %s\n", type_field);
     }
